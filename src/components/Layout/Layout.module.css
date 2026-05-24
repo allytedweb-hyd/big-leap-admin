@@ -1,0 +1,36 @@
+/* Layout Component Styles */
+
+.layout {
+    min-height: 100vh;
+    display: flex;
+}
+
+.main {
+    flex: 1;
+    margin-left: var(--sidebar-width);
+    margin-top: var(--header-height);
+    padding: var(--spacing-lg);
+    background-color: var(--color-background);
+    min-height: calc(100vh - var(--header-height));
+    transition: margin-left var(--transition-normal);
+}
+
+.main.sidebarCollapsed {
+    margin-left: var(--sidebar-collapsed-width);
+}
+
+.pageHeader {
+    margin-bottom: var(--spacing-lg);
+}
+
+.pageTitle {
+    font-size: var(--font-size-2xl);
+    font-weight: var(--font-weight-semibold);
+    color: var(--color-text-primary);
+    margin-bottom: var(--spacing-xs);
+}
+
+.pageDescription {
+    font-size: var(--font-size-sm);
+    color: var(--color-text-secondary);
+}

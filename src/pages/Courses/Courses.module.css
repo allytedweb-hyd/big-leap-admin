@@ -1,0 +1,301 @@
+/* ─── Section Block ──────────────────────────────────────────────────────────── */
+
+.sectionBlock {
+    margin-top: 24px;
+    border: 1px solid #e8e8e8;
+    border-radius: 12px;
+    overflow: hidden;
+    background: #fafafa;
+}
+
+.sectionHeader {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 16px;
+    background: #f3f4f6;
+    border-bottom: 1px solid #e8e8e8;
+}
+
+.sectionTitle {
+    font-size: 14px;
+    font-weight: 600;
+    color: #1a1a2e;
+    letter-spacing: 0.01em;
+}
+
+/* ─── Add item button (Add Point / Add Highlight / Add Chapter) ────────────── */
+
+.addItemBtn {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 6px 14px;
+    border-radius: 8px;
+    border: 1.5px solid #4f46e5;
+    background: #ffffff;
+    color: #4f46e5;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition:
+        background 0.15s,
+        color 0.15s;
+}
+
+.addItemBtn:hover {
+    background: #4f46e5;
+    color: #ffffff;
+}
+
+/* ─── Tags / Points / Highlights list ───────────────────────────────────────── */
+
+.tagList {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding: 14px 16px;
+}
+
+.tagRow {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.tagIndex {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    background: #e0e7ff;
+    color: #4f46e5;
+    font-size: 12px;
+    font-weight: 700;
+    flex-shrink: 0;
+}
+
+.removeTagBtn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 30px;
+    height: 30px;
+    border-radius: 8px;
+    border: 1px solid #fca5a5;
+    background: #fff5f5;
+    color: #ef4444;
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: background 0.15s;
+}
+
+.removeTagBtn:hover {
+    background: #fee2e2;
+}
+
+/* ─── Chapter list ───────────────────────────────────────────────────────────── */
+
+.chapterList {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding: 14px 16px;
+}
+
+/* ─── Chapter card ───────────────────────────────────────────────────────────── */
+
+.chapterCard {
+    border: 1.5px solid #e2e8f0;
+    border-radius: 12px;
+    overflow: hidden;
+    background: #ffffff;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
+}
+
+.chapterHeader {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 14px;
+    background: #f8f9ff;
+    border-bottom: 1.5px solid #e8ecff;
+}
+
+.chapterBadge {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    background: #f97316;
+    color: #ffffff;
+    font-size: 14px;
+    font-weight: 700;
+    flex-shrink: 0;
+}
+
+.chapterTitleInput {
+    flex: 1;
+    margin-bottom: 0 !important;
+    font-weight: 600;
+    font-size: 14px;
+}
+
+.chapterActions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-shrink: 0;
+}
+
+.lessonCount {
+    font-size: 12px;
+    color: #6b7280;
+    background: #e5e7eb;
+    border-radius: 20px;
+    padding: 2px 10px;
+    white-space: nowrap;
+}
+
+.collapseBtn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 30px;
+    height: 30px;
+    border-radius: 8px;
+    border: 1px solid #d1d5db;
+    background: #ffffff;
+    color: #374151;
+    cursor: pointer;
+    transition: background 0.15s;
+}
+
+.collapseBtn:hover {
+    background: #f3f4f6;
+}
+
+.removeChapterBtn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 30px;
+    height: 30px;
+    border-radius: 8px;
+    border: 1px solid #fca5a5;
+    background: #fff5f5;
+    color: #ef4444;
+    cursor: pointer;
+    transition: background 0.15s;
+}
+
+.removeChapterBtn:hover {
+    background: #fee2e2;
+}
+
+/* ─── Lessons area ───────────────────────────────────────────────────────────── */
+
+.lessonsArea {
+    padding: 14px;
+    background: #ffffff;
+}
+
+.lessonsGrid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 12px;
+    margin-bottom: 12px;
+}
+
+/* ─── Lesson card ────────────────────────────────────────────────────────────── */
+
+.lessonCard {
+    border: 1px solid #e8eaed;
+    border-radius: 10px;
+    overflow: hidden;
+    background: #f9fafb;
+}
+
+.lessonCardHeader {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    background: #fff7ed;
+    border-bottom: 1px solid #fed7aa;
+}
+
+.lessonIconWrap {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    border-radius: 6px;
+    background: #f97316;
+    color: #ffffff;
+    flex-shrink: 0;
+}
+
+.lessonLabel {
+    font-size: 12px;
+    font-weight: 600;
+    color: #9a3412;
+    flex: 1;
+}
+
+.removeLessonBtn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    height: 22px;
+    border-radius: 6px;
+    border: 1px solid #fca5a5;
+    background: #fff5f5;
+    color: #ef4444;
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: background 0.15s;
+}
+
+.removeLessonBtn:hover {
+    background: #fee2e2;
+}
+
+.lessonFields {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 10px 12px 12px;
+}
+
+.lessonInput {
+    margin-bottom: 0 !important;
+    font-size: 13px !important;
+}
+
+/* ─── Add Lesson button ──────────────────────────────────────────────────────── */
+
+.addLessonBtn {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 7px 16px;
+    border-radius: 8px;
+    border: 1.5px dashed #f97316;
+    background: #fff7ed;
+    color: #f97316;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background 0.15s;
+}
+
+.addLessonBtn:hover {
+    background: #ffedd5;
+}

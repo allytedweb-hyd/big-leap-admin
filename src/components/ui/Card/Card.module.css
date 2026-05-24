@@ -1,0 +1,71 @@
+/* Card Component Styles */
+
+.card {
+    background-color: var(--color-surface);
+    border-radius: var(--radius-lg);
+    border: 1px solid var(--color-border);
+    box-shadow: var(--shadow-sm);
+    overflow: hidden;
+    transition: box-shadow var(--transition-fast);
+}
+
+.card:hover {
+    box-shadow: var(--shadow-md);
+}
+
+.cardHeader {
+    padding: var(--spacing-lg);
+    border-bottom: 1px solid var(--color-border);
+}
+
+.cardTitle {
+    font-size: var(--font-size-lg);
+    font-weight: var(--font-weight-semibold);
+    color: var(--color-text-primary);
+    margin: 0;
+}
+
+.cardDescription {
+    font-size: var(--font-size-sm);
+    color: var(--color-text-secondary);
+    margin-top: var(--spacing-xs);
+}
+
+.cardContent {
+    padding: var(--spacing-lg);
+}
+
+.cardFooter {
+    padding: var(--spacing-lg);
+    border-top: 1px solid var(--color-border);
+    background-color: var(--color-background);
+}
+
+/* Variants */
+.elevated {
+    box-shadow: var(--shadow-md);
+}
+
+.elevated:hover {
+    box-shadow: var(--shadow-lg);
+}
+
+.outlined {
+    box-shadow: none;
+}
+
+.outlined:hover {
+    box-shadow: none;
+    border-color: var(--color-border-hover);
+}
+
+/* Padding Options */
+.noPadding .cardContent {
+    padding: 0;
+}
+
+.compact .cardHeader,
+.compact .cardContent,
+.compact .cardFooter {
+    padding: var(--spacing-md);
+}
