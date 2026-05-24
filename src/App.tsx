@@ -15,6 +15,9 @@ import Placeholder from './pages/Placeholder/Placeholder';
 import Login from './pages/Auth/Login';
 import Workshops from './pages/Workshop/Workshop';
 import WorkshopRegistrations from './pages/Workshop/WorkshopRegistraions';
+import Enquiries from './pages/Enquiries/Enquiries';
+import FAQPage from './pages/Faq/FAQPage';
+import TestimonialsPage from './pages/Testimonials/Testimonials';
 
 const App = () => {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(!!localStorage.getItem("userjwttoken"));
@@ -68,6 +71,9 @@ const App = () => {
           <Route path="roles" element={<Roles />} />
           <Route path="workshops" element={<Workshops />} />
           <Route path="workshop-registrations" element={<WorkshopRegistrations />} />
+          <Route path="enquiries" element={<Enquiries />} />
+          <Route path="faqs" element={<FAQPage />} />
+          <Route path="testimonials" element={<TestimonialsPage />} />
           <Route path="leave" element={<Placeholder title="Leave" description="Manage approvals." />} />
           <Route path="holidays" element={<Holidays />} />
           <Route path="services-master" element={<Services />} />

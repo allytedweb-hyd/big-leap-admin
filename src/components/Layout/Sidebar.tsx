@@ -18,6 +18,9 @@ import {
   ChevronLeft,
   ChevronRight,
   ChevronDown,
+  MessageSquare,
+  HelpCircle,
+  Star,
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -192,6 +195,44 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 Enrolled Students
               </span>
             )}
+          </Link>
+
+          {/* Enquiries */}
+          <Link
+            to="/enquiries"
+            className={`${styles.navItem} ${
+              location.pathname === '/enquiries'
+                ? styles.active
+                : ''
+            }`}
+          >
+            <span className={styles.navIcon}>
+              <MessageSquare size={20} />
+            </span>
+
+            {!collapsed && (
+              <span className={styles.navLabel}>
+                Enquiries
+              </span>
+            )}
+          </Link>
+
+          {/* FAQs */}
+          <Link
+            to="/faqs"
+            className={`${styles.navItem} ${location.pathname === '/faqs' ? styles.active : ''}`}
+          >
+            <span className={styles.navIcon}><HelpCircle size={20} /></span>
+            {!collapsed && <span className={styles.navLabel}>FAQs</span>}
+          </Link>
+
+          {/* Testimonials */}
+          <Link
+            to="/testimonials"
+            className={`${styles.navItem} ${location.pathname === '/testimonials' ? styles.active : ''}`}
+          >
+            <span className={styles.navIcon}><Star size={20} /></span>
+            {!collapsed && <span className={styles.navLabel}>Testimonials</span>}
           </Link>
       <div className={styles.navGroup}>
   <button
