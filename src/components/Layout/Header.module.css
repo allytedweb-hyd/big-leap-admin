@@ -338,3 +338,10 @@
         width: 260px;
     }
 }
+.breadcrumbSeparator {
+    color: #9ca3af;
+}
+.breadcrumbCurrent {
+    color: #1f2937;
+    font-weight: 500;
+}

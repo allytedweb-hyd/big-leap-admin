@@ -1,3 +1,4 @@
+// components/Layout/Sidebar/Sidebar.tsx
 import React, { useState } from 'react';
 import { useLocation, Link } from 'react-router-dom';
 import styles from './Sidebar.module.css';
@@ -9,11 +10,9 @@ import {
   Users,
   UserCheck,
   Layers3,
-  Database,
   Building2,
   Briefcase,
   ShieldCheck,
-  Wrench,
   Settings,
   ChevronLeft,
   ChevronRight,
@@ -21,6 +20,17 @@ import {
   MessageSquare,
   HelpCircle,
   Star,
+  Cpu,           // Tech Stack (parent)
+  Code2,         // Tech Stack item / Manage Technology
+  Heading,       // Tech Stack Heading
+  CalendarDays,  // Batches (parent)
+  LayoutList,    // Manage Batches / Batches list
+  UserRound,     // Students (parent)
+  ClipboardList, // Student Enrollments
+  Hammer,        // Workshop (parent)
+  PenSquare,     // Workshop Registrations
+  KeyRound,      // Manage Admins
+  Database,      // Master (parent)
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -28,418 +38,186 @@ interface SidebarProps {
   onToggle: () => void;
 }
 
-export const Sidebar: React.FC<SidebarProps> = ({
-  collapsed,
-  onToggle,
-}) => {
+export const Sidebar: React.FC<SidebarProps> = ({ collapsed, onToggle }) => {
   const location = useLocation();
-  const [isMasterOpen, setIsMasterOpen] = useState(false);
-  const [isWorkshopOpen, setWorkshopDropdown] = useState(false);
 
-  // Master routes
-  const masterRoutes = [
-    '/organizations',
-    '/departments',
-    '/roles',
-    '/services-master',
-  ];
-  const workshopRoutes = [
-    '/workshops',
-    '/workshop-registrations',
-  ];
+  const [isMasterOpen,   setIsMasterOpen]   = useState(false);
+  const [isWorkshopOpen, setIsWorkshopOpen] = useState(false);
+  const [isTechOpen,     setIsTechOpen]     = useState(false);
+  const [isStudentsOpen, setIsStudentsOpen] = useState(false);
+  const [isBatchesOpen,  setIsBatchesOpen]  = useState(false);
 
-  const isMasterActive = masterRoutes.some((path) =>
-    location.pathname.startsWith(path)
+  // ── Active-route helpers ──────────────────────────────────────────────────────
+  const isActive    = (path: string) => location.pathname === path;
+  const isUnderPath = (paths: string[]) => paths.some(p => location.pathname.startsWith(p));
+
+  const isMasterActive   = isUnderPath(['/manage-admins', '/manage-technology']);
+  const isWorkshopActive = isUnderPath(['/workshops', '/workshop-registrations']);
+  const isTechActive     = isUnderPath(['/techstack', '/techstack-heading']);
+  const isStudentsActive = isUnderPath(['/students']);
+  const isBatchesActive  = isUnderPath(['/batches']);
+
+  // ── Reusable dropdown component ───────────────────────────────────────────────
+  const NavDropdown: React.FC<{
+    icon: React.ReactNode;
+    label: string;
+    isOpen: boolean;
+    isGroupActive: boolean;
+    onToggle: () => void;
+    children: React.ReactNode;
+  }> = ({ icon, label, isOpen, isGroupActive, onToggle: toggle, children }) => (
+    <div className={styles.navGroup}>
+      <button
+        onClick={() => !collapsed && toggle()}
+        className={`${styles.navItem} ${styles.dropdownToggle} ${isGroupActive ? styles.active : ''}`}
+      >
+        <span className={styles.navIcon}>{icon}</span>
+        {!collapsed && (
+          <>
+            <span className={styles.navLabel}>{label}</span>
+            <ChevronDown
+              size={16}
+              className={`${styles.chevron} ${isOpen ? styles.chevronRotate : ''}`}
+            />
+          </>
+        )}
+      </button>
+
+      <div className={`${styles.dropdownWrapper} ${isOpen && !collapsed ? styles.show : ''}`}>
+        <div className={styles.dropdownContent}>
+          {children}
+        </div>
+      </div>
+    </div>
   );
-    const isWorkshopActive = workshopRoutes.some((path) =>
-    location.pathname.startsWith(path)
+
+  // ── Reusable dropdown item ────────────────────────────────────────────────────
+  const DropdownLink: React.FC<{
+    to: string;
+    icon: React.ReactNode;
+    label: string;
+  }> = ({ to, icon, label }) => (
+    <Link
+      to={to}
+      className={`${styles.dropdownItem} ${isActive(to) ? styles.activeChild : ''}`}
+    >
+      {icon}
+      <span>{label}</span>
+    </Link>
   );
+
+  // ── Reusable top-level nav link ───────────────────────────────────────────────
+  const NavLink: React.FC<{
+    to: string;
+    icon: React.ReactNode;
+    label: string;
+    exact?: boolean;
+  }> = ({ to, icon, label, exact = true }) => {
+    const active = exact ? isActive(to) : location.pathname.startsWith(to);
+    return (
+      <Link to={to} className={`${styles.navItem} ${active ? styles.active : ''}`}>
+        <span className={styles.navIcon}>{icon}</span>
+        {!collapsed && <span className={styles.navLabel}>{label}</span>}
+      </Link>
+    );
+  };
 
   return (
-    <aside
-      className={`${styles.sidebar} ${
-        collapsed ? styles.collapsed : ''
-      }`}
-    >
+    <aside className={`${styles.sidebar} ${collapsed ? styles.collapsed : ''}`}>
+
       {/* Logo */}
       <div className={styles.logo}>
-        <img
-          src="/assets/images/logo1.png"
-          alt="Logo"
-          width={150}
-          height={75}
-        />
+        <img src="/assets/images/logo1.png" alt="Logo" width={150} height={75} />
       </div>
 
       {/* Navigation */}
       <nav className={styles.nav}>
-        {/* Main Menu */}
         <div className={styles.navSection}>
-          <div className={styles.navSectionTitle}>
-            Main Menu
-          </div>
+          <div className={styles.navSectionTitle}>Main Menu</div>
 
           {/* Dashboard */}
-          <Link
-            to="/"
-            className={`${styles.navItem} ${
-              location.pathname === '/' ? styles.active : ''
-            }`}
-          >
-            <span className={styles.navIcon}>
-              <LayoutDashboard size={20} />
-            </span>
-
-            {!collapsed && (
-              <span className={styles.navLabel}>
-                Dashboard
-              </span>
-            )}
-          </Link>
+          <NavLink to="/" icon={<LayoutDashboard size={20} />} label="Dashboard" />
 
           {/* Courses */}
-          <Link
-            to="/courses"
-            className={`${styles.navItem} ${
-              location.pathname === '/courses'
-                ? styles.active
-                : ''
-            }`}
-          >
-            <span className={styles.navIcon}>
-              <BookOpen size={20} />
-            </span>
-
-            {!collapsed && (
-              <span className={styles.navLabel}>
-                Courses
-              </span>
-            )}
-          </Link>
+          <NavLink to="/courses" icon={<BookOpen size={20} />} label="Courses" />
 
           {/* Trainers */}
-          <Link
-            to="/trainers"
-            className={`${styles.navItem} ${
-              location.pathname === '/trainers'
-                ? styles.active
-                : ''
-            }`}
+          <NavLink to="/trainers" icon={<GraduationCap size={20} />} label="Trainers" />
+
+          {/* Batches */}
+          <NavDropdown
+            icon={<CalendarDays size={20} />}
+            label="Batches"
+            isOpen={isBatchesOpen}
+            isGroupActive={isBatchesActive}
+            onToggle={() => setIsBatchesOpen(o => !o)}
           >
-            <span className={styles.navIcon}>
-              <GraduationCap size={20} />
-            </span>
-
-            {!collapsed && (
-              <span className={styles.navLabel}>
-                Trainers
-              </span>
-            )}
-          </Link>
-
-          {/* Batch Management */}
-          <Link
-            to="/batches"
-            className={`${styles.navItem} ${
-              location.pathname === '/batches'
-                ? styles.active
-                : ''
-            }`}
-          >
-            <span className={styles.navIcon}>
-              <Layers3 size={20} />
-            </span>
-
-            {!collapsed && (
-              <span className={styles.navLabel}>
-                Batch Management
-              </span>
-            )}
-          </Link>
+            <DropdownLink to="/batches" icon={<LayoutList size={16} />} label="All Batches" />
+          </NavDropdown>
 
           {/* Students */}
-          <Link
-            to="/students"
-            className={`${styles.navItem} ${
-              location.pathname === '/students'
-                ? styles.active
-                : ''
-            }`}
+          <NavDropdown
+            icon={<UserRound size={20} />}
+            label="Students"
+            isOpen={isStudentsOpen}
+            isGroupActive={isStudentsActive}
+            onToggle={() => setIsStudentsOpen(o => !o)}
           >
-            <span className={styles.navIcon}>
-              <Users size={20} />
-            </span>
-
-            {!collapsed && (
-              <span className={styles.navLabel}>
-                Students
-              </span>
-            )}
-          </Link>
-
-          {/* Enrolled Students */}
-          <Link
-            to="/enrolled-students"
-            className={`${styles.navItem} ${
-              location.pathname === '/enrolled-students'
-                ? styles.active
-                : ''
-            }`}
-          >
-            <span className={styles.navIcon}>
-              <UserCheck size={20} />
-            </span>
-
-            {!collapsed && (
-              <span className={styles.navLabel}>
-                Enrolled Students
-              </span>
-            )}
-          </Link>
+            <DropdownLink to="/students-enrollments" icon={<ClipboardList size={16} />} label="Student Enrollments" />
+            <DropdownLink to="/students"             icon={<Users size={16} />}         label="Students" />
+          </NavDropdown>
 
           {/* Enquiries */}
-          <Link
-            to="/enquiries"
-            className={`${styles.navItem} ${
-              location.pathname === '/enquiries'
-                ? styles.active
-                : ''
-            }`}
-          >
-            <span className={styles.navIcon}>
-              <MessageSquare size={20} />
-            </span>
-
-            {!collapsed && (
-              <span className={styles.navLabel}>
-                Enquiries
-              </span>
-            )}
-          </Link>
+          <NavLink to="/enquiries" icon={<MessageSquare size={20} />} label="Enquiries" />
 
           {/* FAQs */}
-          <Link
-            to="/faqs"
-            className={`${styles.navItem} ${location.pathname === '/faqs' ? styles.active : ''}`}
-          >
-            <span className={styles.navIcon}><HelpCircle size={20} /></span>
-            {!collapsed && <span className={styles.navLabel}>FAQs</span>}
-          </Link>
+          <NavLink to="/faqs" icon={<HelpCircle size={20} />} label="FAQs" />
 
           {/* Testimonials */}
-          <Link
-            to="/testimonials"
-            className={`${styles.navItem} ${location.pathname === '/testimonials' ? styles.active : ''}`}
+          <NavLink to="/testimonials" icon={<Star size={20} />} label="Testimonials" />
+
+          {/* Workshop */}
+          <NavDropdown
+            icon={<Hammer size={20} />}
+            label="Workshop"
+            isOpen={isWorkshopOpen}
+            isGroupActive={isWorkshopActive}
+            onToggle={() => setIsWorkshopOpen(o => !o)}
           >
-            <span className={styles.navIcon}><Star size={20} /></span>
-            {!collapsed && <span className={styles.navLabel}>Testimonials</span>}
-          </Link>
-      <div className={styles.navGroup}>
-  <button
-    onClick={() =>
-      !collapsed &&
-      setWorkshopDropdown(!isWorkshopOpen)
-    }
-    className={`${styles.navItem} ${
-      styles.dropdownToggle
-    } ${isWorkshopActive ? styles.active : ''}`}
-  >
-    <span className={styles.navIcon}>
-      <Database size={20} />
-    </span>
+            <DropdownLink to="/workshops"              icon={<Hammer size={16} />}      label="Workshops" />
+            <DropdownLink to="/workshop-registrations" icon={<PenSquare size={16} />}   label="Registrations" />
+          </NavDropdown>
 
-    {!collapsed && (
-      <>
-        <span className={styles.navLabel}>
-          Workshop
-        </span>
+          {/* Tech Stack */}
+          <NavDropdown
+            icon={<Cpu size={20} />}
+            label="Tech Stack"
+            isOpen={isTechOpen}
+            isGroupActive={isTechActive}
+            onToggle={() => setIsTechOpen(o => !o)}
+          >
+            <DropdownLink to="/techstack-heading" icon={<Heading size={16} />} label="Tech Stack Heading" />
+            <DropdownLink to="/techstack"         icon={<Code2 size={16} />}   label="Tech Stack" />
+          </NavDropdown>
 
-        <ChevronDown
-          size={16}
-          className={`${styles.chevron} ${
-            isWorkshopOpen
-              ? styles.chevronRotate
-              : ''
-          }`}
-        />
-      </>
-    )}
-  </button>
-
-  <div
-    className={`${styles.dropdownWrapper} ${
-      isWorkshopOpen && !collapsed
-        ? styles.show
-        : ''
-    }`}
-  >
-    <div className={styles.dropdownContent}>
-      <Link
-        to="/workshops"
-        className={`${styles.dropdownItem} ${
-          location.pathname === '/workshops'
-            ? styles.activeChild
-            : ''
-        }`}
-      >
-        <Building2 size={16} />
-        <span>Workshop</span>
-      </Link>
-
-      <Link
-        to="/workshop-registrations"
-        className={`${styles.dropdownItem} ${
-          location.pathname ===
-          '/workshop-registrations'
-            ? styles.activeChild
-            : ''
-        }`}
-      >
-        <Briefcase size={16} />
-        <span>Registration</span>
-      </Link>
-    </div>
-  </div>
-</div>
-          {/* Master Dropdown */}
-          {/* <div className={styles.navGroup}>
-            <button
-              onClick={() =>
-                !collapsed &&
-                setIsMasterOpen(!isMasterOpen)
-              }
-              className={`${styles.navItem} ${
-                styles.dropdownToggle
-              } ${isMasterActive ? styles.active : ''}`}
-            >
-              <span className={styles.navIcon}>
-                <Database size={20} />
-              </span>
-
-              {!collapsed && (
-                <>
-                  <span className={styles.navLabel}>
-                    Master
-                  </span>
-
-                  <ChevronDown
-                    size={16}
-                    className={`${styles.chevron} ${
-                      isMasterOpen
-                        ? styles.chevronRotate
-                        : ''
-                    }`}
-                  />
-                </>
-              )}
-            </button>
-
-            <div
-              className={`${styles.dropdownWrapper} ${
-                isMasterOpen && !collapsed
-                  ? styles.show
-                  : ''
-              }`}
-            >
-              <div className={styles.dropdownContent}>
-          
-                <Link
-                  to="/organizations"
-                  className={`${styles.dropdownItem} ${
-                    location.pathname ===
-                    '/organizations'
-                      ? styles.activeChild
-                      : ''
-                  }`}
-                >
-                  <Building2 size={16} />
-                  <span>Organisation</span>
-                </Link>
-
-        
-                <Link
-                  to="/departments"
-                  className={`${styles.dropdownItem} ${
-                    location.pathname ===
-                    '/departments'
-                      ? styles.activeChild
-                      : ''
-                  }`}
-                >
-                  <Briefcase size={16} />
-                  <span>Department</span>
-                </Link>
-
-        
-                <Link
-                  to="/roles"
-                  className={`${styles.dropdownItem} ${
-                    location.pathname === '/roles'
-                      ? styles.activeChild
-                      : ''
-                  }`}
-                >
-                  <ShieldCheck size={16} />
-                  <span>Role</span>
-                </Link>
-
-          
-                <Link
-                  to="/services-master"
-                  className={`${styles.dropdownItem} ${
-                    location.pathname ===
-                    '/services-master'
-                      ? styles.activeChild 
-                      : ''
-                  }`}
-                >
-                  <Wrench size={16} />
-                  <span>Assets / Service</span>
-                </Link>
-              </div>
-            </div>
-          </div> */}
+          {/* Master */}
+          <NavDropdown
+            icon={<Database size={20} />}
+            label="Master"
+            isOpen={isMasterOpen}
+            isGroupActive={isMasterActive}
+            onToggle={() => setIsMasterOpen(o => !o)}
+          >
+            <DropdownLink to="/manage-admins"      icon={<KeyRound size={16} />}   label="Manage Admins" />
+            <DropdownLink to="/manage-technology"  icon={<Code2 size={16} />}      label="Manage Technology" />
+          </NavDropdown>
 
         </div>
-
-        {/* System Section */}
-        {/* <div className={styles.navSection}>
-          <div className={styles.navSectionTitle}>
-            System
-          </div>
-
-          <Link
-            to="/settings"
-            className={`${styles.navItem} ${
-              location.pathname === '/settings'
-                ? styles.active
-                : ''
-            }`}
-          >
-            <span className={styles.navIcon}>
-              <Settings size={20} />
-            </span>
-
-            {!collapsed && (
-              <span className={styles.navLabel}>
-                Settings
-              </span>
-            )}
-          </Link>
-        </div> */}
       </nav>
 
       {/* Collapse Button */}
-      <button
-        className={styles.collapseBtn}
-        onClick={onToggle}
-      >
-        {collapsed ? (
-          <ChevronRight size={20} />
-        ) : (
-          <ChevronLeft size={20} />
-        )}
-
+      <button className={styles.collapseBtn} onClick={onToggle}>
+        {collapsed ? <ChevronRight size={20} /> : <ChevronLeft size={20} />}
         {!collapsed && <span>Collapse</span>}
       </button>
     </aside>

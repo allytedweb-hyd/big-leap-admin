@@ -5,7 +5,7 @@ import { Button } from '../../components/ui/Button/Button';
 import {
   Search, Plus, ChevronLeft, ChevronRight,
   X, Trash2, Edit, Camera, Filter, BookOpen,
-  ChevronDown, ChevronUp, Video, Minus
+  ChevronDown, ChevronUp, Video, Minus, FileText, Radio
 } from 'lucide-react';
 import { httpClient, imgUrl } from '../../lib/httpClient';
 import toast from 'react-hot-toast';
@@ -16,6 +16,8 @@ interface Lesson {
   title: string;
   videoUrl: string;
   duration: number | string;
+  liveSessionLink: string;
+  LiveSessionDate: string; // ISO string for datetime-local input
 }
 
 interface Chapter {
@@ -39,13 +41,22 @@ interface Course {
   projects: number;
   keyHighlights: string[];
   courseThumbnailImage: string;
+  curriculumKey: string;
   createdAt: string;
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-const emptyLesson = (): Lesson => ({ title: '', videoUrl: '', duration: '' });
+const emptyLesson = (): Lesson => ({
+  title: '',
+  videoUrl: '',
+  duration: '',
+  liveSessionLink: '',
+  LiveSessionDate: '',
+});
+
 const emptyChapter = (): Chapter => ({ title: '', lessons: [emptyLesson()] });
+
 const emptyForm = () => ({
   technology: '',
   title: '',
@@ -58,6 +69,15 @@ const emptyForm = () => ({
   modules: '' as number | string,
   projects: '' as number | string,
 });
+
+// Converts a Date/ISO string from DB → datetime-local value (YYYY-MM-DDTHH:mm)
+const toDatetimeLocal = (val?: string | Date): string => {
+  if (!val) return '';
+  const d = new Date(val as string);
+  if (isNaN(d.getTime())) return '';
+  // datetime-local requires YYYY-MM-DDTHH:mm
+  return d.toISOString().slice(0, 16);
+};
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
@@ -76,6 +96,10 @@ const Courses: React.FC = () => {
   // Thumbnail
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+
+  // Curriculum Key
+  const [curriculumKeyFile, setCurriculumKeyFile] = useState<File | null>(null);
+  const [curriculumKeyName, setCurriculumKeyName] = useState<string | null>(null);
 
   // Dynamic sections
   const [curriculum, setCurriculum] = useState<Chapter[]>([emptyChapter()]);
@@ -108,7 +132,6 @@ const Courses: React.FC = () => {
   const fetchCourses = async () => {
     setLoading(true);
     try {
-      // ✅ Correct endpoint: GET /courses
       const res = await httpClient.get('/courses');
       setCourses(res.data?.courses || []);
     } catch {
@@ -140,6 +163,18 @@ const Courses: React.FC = () => {
   };
 
   const removeImage = () => { setSelectedFile(null); setPreviewUrl(null); };
+
+  // ─── Curriculum Key ───────────────────────────────────────────────────────
+
+  const handleCurriculumKeyChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) { setCurriculumKeyFile(file); setCurriculumKeyName(file.name); }
+  };
+
+  const removeCurriculumKey = () => {
+    setCurriculumKeyFile(null);
+    setCurriculumKeyName(null);
+  };
 
   // ─── Curriculum ──────────────────────────────────────────────────────────────
 
@@ -209,14 +244,12 @@ const Courses: React.FC = () => {
     const loadingToast = toast.loading(isEditing ? 'Updating course...' : 'Creating course...');
     const data = new FormData();
 
-    // Append scalar fields
     Object.entries(formData).forEach(([key, value]) => {
       if (value !== null && value !== undefined && value !== '') {
         data.append(key, value.toString());
       }
     });
 
-    // Append arrays using [] notation so Express parses them as arrays
     learningOutcomesPoints
       .filter(v => v.trim())
       .forEach(v => data.append('learningOutcomesPoints[]', v));
@@ -225,7 +258,7 @@ const Courses: React.FC = () => {
       .filter(v => v.trim())
       .forEach(v => data.append('keyHighlights[]', v));
 
-    // Curriculum as JSON string — controller parses it back
+    // Curriculum as JSON — includes liveSessionLink and LiveSessionDate
     data.append('curriculum', JSON.stringify(
       curriculum.map(ch => ({
         title: ch.title,
@@ -233,21 +266,23 @@ const Courses: React.FC = () => {
           title: ls.title,
           videoUrl: ls.videoUrl,
           duration: ls.duration ? Number(ls.duration) : 0,
+          liveSessionLink: ls.liveSessionLink || '',
+          // Send ISO string if set, otherwise omit
+          ...(ls.LiveSessionDate ? { LiveSessionDate: new Date(ls.LiveSessionDate).toISOString() } : {}),
         })),
       }))
     ));
 
     if (selectedFile) data.append('courseThumbnailImage', selectedFile);
+    if (curriculumKeyFile) data.append('curriculumKey', curriculumKeyFile);
 
     try {
       const config = { headers: { 'Content-Type': 'multipart/form-data' } };
 
       if (isEditing && selectedId) {
-        // ✅ Correct endpoint: PUT /courses/:id
         await httpClient.put(`/courses/${selectedId}`, data, config);
         toast.success('Course updated successfully!', { id: loadingToast });
       } else {
-        // ✅ Correct endpoint: POST /courses
         await httpClient.post('/courses', data, config);
         toast.success('Course created successfully!', { id: loadingToast });
       }
@@ -266,7 +301,6 @@ const Courses: React.FC = () => {
     if (!window.confirm('Are you sure you want to delete this course?')) return;
     const loadingToast = toast.loading('Deleting course...');
     try {
-      // ✅ Correct endpoint: DELETE /courses/:id
       await httpClient.delete(`/courses/${id}`);
       toast.success('Course deleted successfully!', { id: loadingToast });
       fetchCourses();
@@ -301,6 +335,8 @@ const Courses: React.FC = () => {
                   title: ls.title,
                   videoUrl: ls.videoUrl || '',
                   duration: ls.duration || '',
+                  liveSessionLink: ls.liveSessionLink || '',
+                  LiveSessionDate: toDatetimeLocal(ls.LiveSessionDate),
                 }))
               : [emptyLesson()],
           }))
@@ -319,6 +355,8 @@ const Courses: React.FC = () => {
         : null
     );
     setSelectedFile(null);
+    setCurriculumKeyFile(null);
+    setCurriculumKeyName(course.curriculumKey || null);
     setShowModal(true);
   };
 
@@ -332,6 +370,8 @@ const Courses: React.FC = () => {
     setPreviewUrl(null);
     setIsEditing(false);
     setSelectedId(null);
+    setCurriculumKeyFile(null);
+    setCurriculumKeyName(null);
   };
 
   // ─── Pagination ──────────────────────────────────────────────────────────────
@@ -455,17 +495,10 @@ const Courses: React.FC = () => {
                           src={`${imgUrl}/courses/${course.courseThumbnailImage}`}
                           alt={course.title}
                           style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                          onError={e => {
-                            (e.target as HTMLImageElement).style.display = 'none';
-                          }}
+                          onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }}
                         />
                       ) : (
-                        <div style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          height: '100%',
-                        }}>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%' }}>
                           <BookOpen size={20} color="#aaa" />
                         </div>
                       )}
@@ -478,12 +511,8 @@ const Courses: React.FC = () => {
                     </div>
                   </div>
                 </td>
-                <td>
-                  <span className={styles.orgBadge}>{course.technology?.name || 'N/A'}</span>
-                </td>
-                <td>
-                  <strong>₹{course.coursePrice?.toLocaleString()}</strong>
-                </td>
+                <td><span className={styles.orgBadge}>{course.technology?.name || 'N/A'}</span></td>
+                <td><strong>₹{course.coursePrice?.toLocaleString()}</strong></td>
                 <td>
                   <div className={styles.deptText}>{course.hoursOfContent}h content</div>
                   <div className={styles.roleText}>{course.curriculum?.length || 0} chapters</div>
@@ -494,16 +523,8 @@ const Courses: React.FC = () => {
                 </td>
                 <td>
                   <div className={styles.actionButtons}>
-                    <Edit
-                      size={18}
-                      onClick={() => openEditModal(course)}
-                      className={styles.editIcon}
-                    />
-                    <Trash2
-                      size={18}
-                      onClick={() => handleDelete(course._id)}
-                      className={styles.deleteIcon}
-                    />
+                    <Edit size={18} onClick={() => openEditModal(course)} className={styles.editIcon} />
+                    <Trash2 size={18} onClick={() => handleDelete(course._id)} className={styles.deleteIcon} />
                   </div>
                 </td>
               </tr>
@@ -519,21 +540,11 @@ const Courses: React.FC = () => {
               {filteredCourses.length} courses
             </div>
             <div className={styles.paginationControls}>
-              <button
-                className={styles.pageBtn}
-                disabled={currentPage === 1}
-                onClick={() => setCurrentPage(p => p - 1)}
-              >
+              <button className={styles.pageBtn} disabled={currentPage === 1} onClick={() => setCurrentPage(p => p - 1)}>
                 <ChevronLeft size={16} />
               </button>
-              <button className={`${styles.pageBtn} ${styles.active}`}>
-                {currentPage}
-              </button>
-              <button
-                className={styles.pageBtn}
-                disabled={currentPage === totalPages}
-                onClick={() => setCurrentPage(p => p + 1)}
-              >
+              <button className={`${styles.pageBtn} ${styles.active}`}>{currentPage}</button>
+              <button className={styles.pageBtn} disabled={currentPage === totalPages} onClick={() => setCurrentPage(p => p + 1)}>
                 <ChevronRight size={16} />
               </button>
             </div>
@@ -541,96 +552,44 @@ const Courses: React.FC = () => {
         )}
       </div>
 
-      {/* ═══════════════════════════════════════════════════════════════════════
-          MODAL
-      ═══════════════════════════════════════════════════════════════════════ */}
+      {/* ═══════════════════════════════ MODAL ═══════════════════════════════ */}
       {showModal && (
         <div className={styles.modalOverlay}>
           <div className={styles.modal} style={{ maxWidth: 920, width: '95vw' }}>
 
             <div className={styles.modalHeader}>
-              <h2 className={styles.modalTitle}>
-                {isEditing ? 'Edit' : 'Add'} Course
-              </h2>
-              <X
-                size={20}
-                onClick={() => setShowModal(false)}
-                style={{ cursor: 'pointer' }}
-              />
+              <h2 className={styles.modalTitle}>{isEditing ? 'Edit' : 'Add'} Course</h2>
+              <X size={20} onClick={() => setShowModal(false)} style={{ cursor: 'pointer' }} />
             </div>
 
             <form onSubmit={handleSubmit}>
-              <div
-                className={styles.modalBody}
-                style={{ maxHeight: '74vh', overflowY: 'auto' }}
-              >
+              <div className={styles.modalBody} style={{ maxHeight: '74vh', overflowY: 'auto' }}>
 
-                {/* ── Thumbnail + Technology row ── */}
-                <div style={{
-                  display: 'flex',
-                  gap: 20,
-                  marginBottom: 20,
-                  alignItems: 'flex-start',
-                }}>
-                  {/* Thumbnail */}
+                {/* ── Thumbnail + Technology ── */}
+                <div style={{ display: 'flex', gap: 20, marginBottom: 20, alignItems: 'flex-start' }}>
                   <div style={{ flexShrink: 0, textAlign: 'center' }}>
                     <div className={styles.imagePreviewWrapper}>
-                      <div
-                        className={styles.imagePlaceholder}
-                        style={{ width: 160, height: 100, borderRadius: 10 }}
-                      >
+                      <div className={styles.imagePlaceholder} style={{ width: 160, height: 100, borderRadius: 10 }}>
                         {previewUrl ? (
                           <>
-                            <img
-                              src={previewUrl}
-                              alt="Thumbnail"
-                              className={styles.imgPreview}
-                              style={{ borderRadius: 10, objectFit: 'cover' }}
-                            />
-                            <button
-                              type="button"
-                              className={styles.removeImageBtn}
-                              onClick={removeImage}
-                            >
-                              <X size={14} />
-                            </button>
+                            <img src={previewUrl} alt="Thumbnail" className={styles.imgPreview} style={{ borderRadius: 10, objectFit: 'cover' }} />
+                            <button type="button" className={styles.removeImageBtn} onClick={removeImage}><X size={14} /></button>
                           </>
                         ) : (
-                          <label
-                            htmlFor="thumbnail-upload"
-                            style={{
-                              cursor: 'pointer',
-                              display: 'flex',
-                              flexDirection: 'column',
-                              alignItems: 'center',
-                              gap: 4,
-                              color: '#aaa',
-                            }}
-                          >
+                          <label htmlFor="thumbnail-upload" style={{ cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, color: '#aaa' }}>
                             <Camera size={28} />
                             <span style={{ fontSize: 11 }}>Thumbnail</span>
                           </label>
                         )}
                       </div>
-                      <label
-                        htmlFor="thumbnail-upload"
-                        className={styles.imageUploadLabel}
-                        style={{ cursor: 'pointer', display: 'block', marginTop: 5 }}
-                      >
+                      <label htmlFor="thumbnail-upload" className={styles.imageUploadLabel} style={{ cursor: 'pointer', display: 'block', marginTop: 5 }}>
                         {isEditing ? 'Change Thumbnail' : 'Upload Thumbnail'}
                         {!isEditing && <span style={{ color: 'red' }}> *</span>}
                       </label>
                     </div>
-                    <input
-                      id="thumbnail-upload"
-                      type="file"
-                      accept="image/*"
-                      hidden
-                      onChange={handleImageChange}
-                    />
+                    <input id="thumbnail-upload" type="file" accept="image/*" hidden onChange={handleImageChange} />
                   </div>
 
-                  {/* Technology */}
                   <div style={{ flex: 1 }}>
                     <div className={styles.formGroup}>
                       <label className={styles.formLabel}>Technology</label>
@@ -648,212 +607,112 @@ const Courses: React.FC = () => {
                   </div>
                 </div>
 
+                {/* ── Curriculum Key ── */}
+                <div className={styles.formGroup} style={{ marginBottom: 20 }}>
+                  <label className={styles.formLabel}>
+                    Curriculum Key{' '}
+                    <span style={{ fontWeight: 400, color: '#888', fontSize: 12 }}>(PDF or DOCX)</span>
+                  </label>
+                  {curriculumKeyName ? (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 12px', border: '1px solid #e0e0e0', borderRadius: 8, background: '#f9f9f9' }}>
+                      <FileText size={18} color="#6366f1" style={{ flexShrink: 0 }} />
+                      <span style={{ flex: 1, fontSize: 13, color: '#333', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {curriculumKeyName}
+                      </span>
+                      <label htmlFor="curriculum-key-upload" className={styles.imageUploadLabel} style={{ cursor: 'pointer', margin: 0, whiteSpace: 'nowrap', fontSize: 12 }}>
+                        Replace
+                      </label>
+                      <button type="button" onClick={removeCurriculumKey} title="Remove" style={{ background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', color: '#ef4444', padding: 2, flexShrink: 0 }}>
+                        <X size={15} />
+                      </button>
+                    </div>
+                  ) : (
+                    <label htmlFor="curriculum-key-upload" style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px', border: '1.5px dashed #d1d5db', borderRadius: 8, cursor: 'pointer', background: '#fafafa' }}>
+                      <FileText size={20} color="#aaa" />
+                      <span style={{ fontSize: 13, color: '#aaa' }}>Click to upload curriculum key (PDF or DOCX)</span>
+                    </label>
+                  )}
+                  <input
+                    id="curriculum-key-upload"
+                    type="file"
+                    accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                    hidden
+                    onChange={handleCurriculumKeyChange}
+                  />
+                </div>
+
                 {/* ── Basic Info ── */}
                 <div className={styles.formGrid}>
                   <div className={styles.formGroup} style={{ gridColumn: '1 / -1' }}>
-                    <label className={styles.formLabel}>
-                      Course Title <span style={{ color: 'red' }}>*</span>
-                    </label>
-                    <input
-                      type="text"
-                      className={styles.formInput}
-                      required
-                      value={formData.title}
-                      onChange={e => setFormData({ ...formData, title: e.target.value })}
-                    />
+                    <label className={styles.formLabel}>Course Title <span style={{ color: 'red' }}>*</span></label>
+                    <input type="text" className={styles.formInput} required value={formData.title} onChange={e => setFormData({ ...formData, title: e.target.value })} />
                   </div>
-
                   <div className={styles.formGroup} style={{ gridColumn: '1 / -1' }}>
-                    <label className={styles.formLabel}>
-                      Description One <span style={{ color: 'red' }}>*</span>
-                    </label>
-                    <textarea
-                      className={styles.formInput}
-                      required
-                      rows={3}
-                      value={formData.descriptionOne}
-                      onChange={e => setFormData({ ...formData, descriptionOne: e.target.value })}
-                      style={{ resize: 'vertical' }}
-                    />
+                    <label className={styles.formLabel}>Description One <span style={{ color: 'red' }}>*</span></label>
+                    <textarea className={styles.formInput} required rows={3} value={formData.descriptionOne} onChange={e => setFormData({ ...formData, descriptionOne: e.target.value })} style={{ resize: 'vertical' }} />
                   </div>
-
                   <div className={styles.formGroup} style={{ gridColumn: '1 / -1' }}>
-                    <label className={styles.formLabel}>
-                      Description Two <span style={{ color: 'red' }}>*</span>
-                    </label>
-                    <textarea
-                      className={styles.formInput}
-                      required
-                      rows={3}
-                      value={formData.descriptionTwo}
-                      onChange={e => setFormData({ ...formData, descriptionTwo: e.target.value })}
-                      style={{ resize: 'vertical' }}
-                    />
+                    <label className={styles.formLabel}>Description Two <span style={{ color: 'red' }}>*</span></label>
+                    <textarea className={styles.formInput} required rows={3} value={formData.descriptionTwo} onChange={e => setFormData({ ...formData, descriptionTwo: e.target.value })} style={{ resize: 'vertical' }} />
                   </div>
-
                   <div className={styles.formGroup}>
-                    <label className={styles.formLabel}>
-                      Demo URL <span style={{ color: 'red' }}>*</span>
-                    </label>
-                    <input
-                      type="url"
-                      className={styles.formInput}
-                      required
-                      value={formData.demoUrl}
-                      onChange={e => setFormData({ ...formData, demoUrl: e.target.value })}
-                    />
+                    <label className={styles.formLabel}>Demo URL <span style={{ color: 'red' }}>*</span></label>
+                    <input type="url" className={styles.formInput} required value={formData.demoUrl} onChange={e => setFormData({ ...formData, demoUrl: e.target.value })} />
                   </div>
-
                   <div className={styles.formGroup}>
-                    <label className={styles.formLabel}>
-                      Course Price (₹) <span style={{ color: 'red' }}>*</span>
-                    </label>
-                    <input
-                      type="number"
-                      className={styles.formInput}
-                      required
-                      min={0}
-                      value={formData.coursePrice}
-                      onChange={e => setFormData({ ...formData, coursePrice: e.target.value })}
-                    />
+                    <label className={styles.formLabel}>Course Price (₹) <span style={{ color: 'red' }}>*</span></label>
+                    <input type="number" className={styles.formInput} required min={0} value={formData.coursePrice} onChange={e => setFormData({ ...formData, coursePrice: e.target.value })} />
                   </div>
-
                   <div className={styles.formGroup}>
-                    <label className={styles.formLabel}>
-                      Hours of Content <span style={{ color: 'red' }}>*</span>
-                    </label>
-                    <input
-                      type="number"
-                      className={styles.formInput}
-                      required
-                      min={0.5}
-                      step={0.5}
-                      value={formData.hoursOfContent}
-                      onChange={e => setFormData({ ...formData, hoursOfContent: e.target.value })}
-                    />
+                    <label className={styles.formLabel}>Hours of Content <span style={{ color: 'red' }}>*</span></label>
+                    <input type="number" className={styles.formInput} required min={0.5} step={0.5} value={formData.hoursOfContent} onChange={e => setFormData({ ...formData, hoursOfContent: e.target.value })} />
                   </div>
-
                   <div className={styles.formGroup}>
-                    <label className={styles.formLabel}>
-                      Modules <span style={{ color: 'red' }}>*</span>
-                    </label>
-                    <input
-                      type="number"
-                      className={styles.formInput}
-                      required
-                      min={1}
-                      value={formData.modules}
-                      onChange={e => setFormData({ ...formData, modules: e.target.value })}
-                    />
+                    <label className={styles.formLabel}>Modules <span style={{ color: 'red' }}>*</span></label>
+                    <input type="number" className={styles.formInput} required min={1} value={formData.modules} onChange={e => setFormData({ ...formData, modules: e.target.value })} />
                   </div>
-
                   <div className={styles.formGroup}>
-                    <label className={styles.formLabel}>
-                      Projects <span style={{ color: 'red' }}>*</span>
-                    </label>
-                    <input
-                      type="number"
-                      className={styles.formInput}
-                      required
-                      min={0}
-                      value={formData.projects}
-                      onChange={e => setFormData({ ...formData, projects: e.target.value })}
-                    />
+                    <label className={styles.formLabel}>Projects <span style={{ color: 'red' }}>*</span></label>
+                    <input type="number" className={styles.formInput} required min={0} value={formData.projects} onChange={e => setFormData({ ...formData, projects: e.target.value })} />
                   </div>
-
                   <div className={styles.formGroup} style={{ gridColumn: '1 / -1' }}>
-                    <label className={styles.formLabel}>
-                      Learning Outcomes Description <span style={{ color: 'red' }}>*</span>
-                    </label>
-                    <textarea
-                      className={styles.formInput}
-                      required
-                      rows={2}
-                      value={formData.learningOutcomesDescription}
-                      onChange={e =>
-                        setFormData({ ...formData, learningOutcomesDescription: e.target.value })
-                      }
-                      style={{ resize: 'vertical' }}
-                    />
+                    <label className={styles.formLabel}>Learning Outcomes Description <span style={{ color: 'red' }}>*</span></label>
+                    <textarea className={styles.formInput} required rows={2} value={formData.learningOutcomesDescription} onChange={e => setFormData({ ...formData, learningOutcomesDescription: e.target.value })} style={{ resize: 'vertical' }} />
                   </div>
                 </div>
 
-                {/* ══════════════════════════════════════════════════════════
-                    LEARNING OUTCOMES POINTS
-                ══════════════════════════════════════════════════════════ */}
+                {/* ── Learning Outcomes Points ── */}
                 <div className={courseStyles.sectionBlock}>
                   <div className={courseStyles.sectionHeader}>
-                    <span className={courseStyles.sectionTitle}>
-                      Learning Outcomes Points
-                    </span>
-                    <button
-                      type="button"
-                      className={courseStyles.addItemBtn}
-                      onClick={addOutcome}
-                    >
-                      <Plus size={14} /> Add Point
-                    </button>
+                    <span className={courseStyles.sectionTitle}>Learning Outcomes Points</span>
+                    <button type="button" className={courseStyles.addItemBtn} onClick={addOutcome}><Plus size={14} /> Add Point</button>
                   </div>
                   <div className={courseStyles.tagList}>
                     {learningOutcomesPoints.map((point, i) => (
                       <div key={i} className={courseStyles.tagRow}>
                         <span className={courseStyles.tagIndex}>{i + 1}</span>
-                        <input
-                          type="text"
-                          className={styles.formInput}
-                          placeholder="e.g. Understand core concepts of the subject"
-                          value={point}
-                          onChange={e => updateOutcome(i, e.target.value)}
-                          style={{ flex: 1, marginBottom: 0 }}
-                        />
+                        <input type="text" className={styles.formInput} placeholder="e.g. Understand core concepts of the subject" value={point} onChange={e => updateOutcome(i, e.target.value)} style={{ flex: 1, marginBottom: 0 }} />
                         {learningOutcomesPoints.length > 1 && (
-                          <button
-                            type="button"
-                            className={courseStyles.removeTagBtn}
-                            onClick={() => removeOutcome(i)}
-                          >
-                            <Minus size={14} />
-                          </button>
+                          <button type="button" className={courseStyles.removeTagBtn} onClick={() => removeOutcome(i)}><Minus size={14} /></button>
                         )}
                       </div>
                     ))}
                   </div>
                 </div>
 
-                {/* ══════════════════════════════════════════════════════════
-                    KEY HIGHLIGHTS
-                ══════════════════════════════════════════════════════════ */}
+                {/* ── Key Highlights ── */}
                 <div className={courseStyles.sectionBlock}>
                   <div className={courseStyles.sectionHeader}>
                     <span className={courseStyles.sectionTitle}>Key Highlights</span>
-                    <button
-                      type="button"
-                      className={courseStyles.addItemBtn}
-                      onClick={addHighlight}
-                    >
-                      <Plus size={14} /> Add Highlight
-                    </button>
+                    <button type="button" className={courseStyles.addItemBtn} onClick={addHighlight}><Plus size={14} /> Add Highlight</button>
                   </div>
                   <div className={courseStyles.tagList}>
                     {keyHighlights.map((highlight, i) => (
                       <div key={i} className={courseStyles.tagRow}>
                         <span className={courseStyles.tagIndex}>{i + 1}</span>
-                        <input
-                          type="text"
-                          className={styles.formInput}
-                          placeholder="e.g. Lifetime access to course materials"
-                          value={highlight}
-                          onChange={e => updateHighlight(i, e.target.value)}
-                          style={{ flex: 1, marginBottom: 0 }}
-                        />
+                        <input type="text" className={styles.formInput} placeholder="e.g. Lifetime access to course materials" value={highlight} onChange={e => updateHighlight(i, e.target.value)} style={{ flex: 1, marginBottom: 0 }} />
                         {keyHighlights.length > 1 && (
-                          <button
-                            type="button"
-                            className={courseStyles.removeTagBtn}
-                            onClick={() => removeHighlight(i)}
-                          >
-                            <Minus size={14} />
-                          </button>
+                          <button type="button" className={courseStyles.removeTagBtn} onClick={() => removeHighlight(i)}><Minus size={14} /></button>
                         )}
                       </div>
                     ))}
@@ -861,25 +720,19 @@ const Courses: React.FC = () => {
                 </div>
 
                 {/* ══════════════════════════════════════════════════════════
-                    CURRICULUM
+                    CURRICULUM — with Live Session fields per lesson
                 ══════════════════════════════════════════════════════════ */}
                 <div className={courseStyles.sectionBlock}>
                   <div className={courseStyles.sectionHeader}>
                     <span className={courseStyles.sectionTitle}>Curriculum</span>
-                    <button
-                      type="button"
-                      className={courseStyles.addItemBtn}
-                      onClick={addChapter}
-                    >
-                      <Plus size={14} /> Add Chapter
-                    </button>
+                    <button type="button" className={courseStyles.addItemBtn} onClick={addChapter}><Plus size={14} /> Add Chapter</button>
                   </div>
 
                   <div className={courseStyles.chapterList}>
                     {curriculum.map((chapter, ci) => (
                       <div key={ci} className={courseStyles.chapterCard}>
 
-                        {/* Chapter header row */}
+                        {/* Chapter header */}
                         <div className={courseStyles.chapterHeader}>
                           <div className={courseStyles.chapterBadge}>{ci + 1}</div>
                           <input
@@ -893,96 +746,59 @@ const Courses: React.FC = () => {
                             <span className={courseStyles.lessonCount}>
                               {chapter.lessons.length} lesson{chapter.lessons.length !== 1 ? 's' : ''}
                             </span>
-                            <button
-                              type="button"
-                              className={courseStyles.collapseBtn}
-                              onClick={() => toggleChapter(ci)}
-                              title={collapsedChapters[ci] ? 'Expand' : 'Collapse'}
-                            >
-                              {collapsedChapters[ci]
-                                ? <ChevronDown size={15} />
-                                : <ChevronUp size={15} />}
+                            <button type="button" className={courseStyles.collapseBtn} onClick={() => toggleChapter(ci)} title={collapsedChapters[ci] ? 'Expand' : 'Collapse'}>
+                              {collapsedChapters[ci] ? <ChevronDown size={15} /> : <ChevronUp size={15} />}
                             </button>
                             {curriculum.length > 1 && (
-                              <button
-                                type="button"
-                                className={courseStyles.removeChapterBtn}
-                                onClick={() => removeChapter(ci)}
-                                title="Remove chapter"
-                              >
+                              <button type="button" className={courseStyles.removeChapterBtn} onClick={() => removeChapter(ci)} title="Remove chapter">
                                 <Trash2 size={15} />
                               </button>
                             )}
                           </div>
                         </div>
 
-                        {/* Lessons area */}
+                        {/* Lessons */}
                         {!collapsedChapters[ci] && (
                           <div className={courseStyles.lessonsArea}>
                             <div className={courseStyles.lessonsGrid}>
                               {chapter.lessons.map((lesson, li) => (
                                 <div key={li} className={courseStyles.lessonCard}>
+
+                                  {/* Lesson card header */}
                                   <div className={courseStyles.lessonCardHeader}>
                                     <div className={courseStyles.lessonIconWrap}>
                                       <Video size={13} />
                                     </div>
-                                    <span className={courseStyles.lessonLabel}>
-                                      Lesson {li + 1}
-                                    </span>
+                                    <span className={courseStyles.lessonLabel}>Lesson {li + 1}</span>
                                     {chapter.lessons.length > 1 && (
-                                      <button
-                                        type="button"
-                                        className={courseStyles.removeLessonBtn}
-                                        onClick={() => removeLesson(ci, li)}
-                                        title="Remove lesson"
-                                      >
+                                      <button type="button" className={courseStyles.removeLessonBtn} onClick={() => removeLesson(ci, li)} title="Remove lesson">
                                         <X size={12} />
                                       </button>
                                     )}
                                   </div>
+
+                                  {/* Lesson fields */}
                                   <div className={courseStyles.lessonFields}>
+
+                                    {/* Row 1: Title */}
                                     <input
                                       type="text"
                                       className={`${styles.formInput} ${courseStyles.lessonInput}`}
                                       placeholder="Lesson title *"
                                       value={lesson.title}
-                                      onChange={e =>
-                                        updateLesson(ci, li, 'title', e.target.value)
-                                      }
+                                      onChange={e => updateLesson(ci, li, 'title', e.target.value)}
                                     />
-                                    <div style={{ display: 'flex', gap: 8 }}>
-                                      <input
-                                        type="url"
-                                        className={`${styles.formInput} ${courseStyles.lessonInput}`}
-                                        placeholder="Video URL"
-                                        value={lesson.videoUrl}
-                                        onChange={e =>
-                                          updateLesson(ci, li, 'videoUrl', e.target.value)
-                                        }
-                                        style={{ flex: 2 }}
-                                      />
-                                      <input
-                                        type="number"
-                                        className={`${styles.formInput} ${courseStyles.lessonInput}`}
-                                        placeholder="Duration (min)"
-                                        min={0}
-                                        value={lesson.duration}
-                                        onChange={e =>
-                                          updateLesson(ci, li, 'duration', e.target.value)
-                                        }
-                                        style={{ flex: 1 }}
-                                      />
-                                    </div>
+
+                             
+
+                           
+
                                   </div>
                                 </div>
                               ))}
                             </div>
 
-                            <button
-                              type="button"
-                              className={courseStyles.addLessonBtn}
-                              onClick={() => addLesson(ci)}
-                            >
+                            <button type="button" className={courseStyles.addLessonBtn} onClick={() => addLesson(ci)}>
                               <Plus size={14} /> Add Lesson to Chapter {ci + 1}
                             </button>
                           </div>
@@ -995,16 +811,8 @@ const Courses: React.FC = () => {
               </div>{/* end modalBody */}
 
               <div className={styles.modalFooter}>
-                <Button
-                  variant="secondary"
-                  type="button"
-                  onClick={() => setShowModal(false)}
-                >
-                  Cancel
-                </Button>
-                <Button type="submit" variant="primary">
-                  {isEditing ? 'Update' : 'Save'} Course
-                </Button>
+                <Button variant="secondary" type="button" onClick={() => setShowModal(false)}>Cancel</Button>
+                <Button type="submit" variant="primary">{isEditing ? 'Update' : 'Save'} Course</Button>
               </div>
             </form>
 

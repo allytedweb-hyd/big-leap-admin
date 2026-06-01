@@ -18,6 +18,14 @@ import WorkshopRegistrations from './pages/Workshop/WorkshopRegistraions';
 import Enquiries from './pages/Enquiries/Enquiries';
 import FAQPage from './pages/Faq/FAQPage';
 import TestimonialsPage from './pages/Testimonials/Testimonials';
+import TechstackHeading from './pages/TechstackHeading/TechstackHeading';
+import Techstack from './pages/TechstackHeading/TechStack';
+import Trainers from './pages/Trainers/Trainers';
+import StudentEnrollments from './pages/StudentEnrollments/StudentEnrollments';
+import Batches from './pages/Batches/Batches';
+import ManageBatches from './pages/Batches/ManageBatch';
+import Admins from './pages/Admins/Admins';
+import TechnologyPage from './pages/Technology/Technology';
 
 const App = () => {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(!!localStorage.getItem("userjwttoken"));
@@ -79,6 +87,14 @@ const App = () => {
           <Route path="services-master" element={<Services />} />
           <Route path="payroll" element={<Placeholder title="Payroll" description="View payslips." />} />
           <Route path="settings" element={<Placeholder title="Settings" description="Manage preferences." />} />
+          <Route path="techstack-heading" element={<TechstackHeading />} />
+          <Route path="techstack" element={<Techstack />} />
+          <Route path="trainers" element={<Trainers />} />
+          <Route path="students-enrollments" element={<StudentEnrollments />} />
+          <Route path="batches" element={<Batches />} />
+          <Route path="manage-batches/:batchId" element={<ManageBatches />} />
+          <Route path="manage-admins" element={<Admins />} />
+          <Route path="manage-technology" element={<TechnologyPage />} />
         </Route>
 
         <Route path="*" element={<Navigate to={isAuthenticated ? "/" : "/login"} replace />} />

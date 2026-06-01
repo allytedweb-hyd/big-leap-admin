@@ -1,6 +1,6 @@
 // components/Layout/Header/Header.tsx
 import React, { useState, useEffect, useRef } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate, Link } from 'react-router-dom';
 import styles from './Header.module.css';
 import { Search, Bell, ChevronDown, ChevronRight, User, LogOut, Settings } from 'lucide-react';
 import { getUserFromStorage, getUserInitials, getUserName, getUserRole } from '../../lib/userData';
@@ -9,56 +9,92 @@ interface HeaderProps {
   sidebarCollapsed: boolean;
 }
 
-const pageTitles: Record<string, string> = {
-  '/': 'Dashboard',
-  '/employees': 'Employees',
-  '/attendance': 'Attendance',
-  '/leaves': 'Leave Management',
-  '/holidays': 'Holidays',
-  '/payroll': 'Payroll',
-  '/performance': 'Performance',
-  '/settings': 'Settings',
-  '/organizations': 'Organizations',
-  '/departments': 'Departments',
-  '/roles': 'Roles',
-  '/services-master': 'Services',
-  '/employee-tracking': 'Employee Tracking',
-  '/profile': 'My Profile',
+// ─── Route segment label map ───────────────────────────────────────────────────
+// Maps any URL segment (or full path) to a human-readable label.
+// Add new routes here as the app grows.
+const SEGMENT_LABELS: Record<string, string> = {
+  // top-level pages
+  '':                   'Dashboard',
+  'dashboard':          'Dashboard',
+  'employees':          'Employees',
+  'attendance':         'Attendance',
+  'leaves':             'Leave Management',
+  'holidays':           'Holidays',
+  'payroll':            'Payroll',
+  'performance':        'Performance',
+  'settings':           'Settings',
+  'organizations':      'Organizations',
+  'departments':        'Departments',
+  'roles':              'Roles',
+  'services-master':    'Services',
+  'employee-tracking':  'Employee Tracking',
+  'profile':            'My Profile',
+  'admins':             'Admins',
+  'faqs':               'FAQs',
+  'technologies':       'Technologies',
+  // nested / action segments
+  'new':                'New',
+  'edit':               'Edit',
+  'view':               'View',
+  'details':            'Details',
 };
 
+// ─── Helpers ───────────────────────────────────────────────────────────────────
+
+/** Returns a label for a single path segment. Falls back to title-casing the raw segment. */
+const labelFor = (segment: string): string => {
+  if (SEGMENT_LABELS[segment]) return SEGMENT_LABELS[segment];
+  // If it looks like a MongoDB ObjectId or UUID, show "Details"
+  if (/^[a-f0-9]{24}$/i.test(segment) || /^[0-9a-f-]{36}$/i.test(segment)) return 'Details';
+  // Title-case the raw segment as a last resort
+  return segment
+    .replace(/-/g, ' ')
+    .replace(/\b\w/g, c => c.toUpperCase());
+};
+
+interface BreadcrumbSegment {
+  label: string;
+  path: string;
+  isLast: boolean;
+}
+
+/** Converts the current pathname into an array of breadcrumb segments. */
+const buildBreadcrumbs = (pathname: string): BreadcrumbSegment[] => {
+  const parts = pathname.split('/').filter(Boolean); // remove empty strings
+
+  const crumbs: BreadcrumbSegment[] = [
+    { label: 'Home', path: '/', isLast: parts.length === 0 },
+  ];
+
+  parts.forEach((part, index) => {
+    const path = '/' + parts.slice(0, index + 1).join('/');
+    crumbs.push({
+      label: labelFor(part),
+      path,
+      isLast: index === parts.length - 1,
+    });
+  });
+
+  return crumbs;
+};
+
+// ─── Component ─────────────────────────────────────────────────────────────────
+
 export const Header: React.FC<HeaderProps> = ({ sidebarCollapsed }) => {
-  const location = useLocation();
-  const navigate = useNavigate();
+  const location  = useLocation();
+  const navigate  = useNavigate();
+
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
-  const [userName, setUserName] = useState('');
-  const [userRole, setUserRole] = useState('');
-  const [userInitials, setUserInitials] = useState('U');
-  const [userEmail, setUserEmail] = useState('');
-  const dropdownRef = useRef<HTMLDivElement>(null);
+  const [userName, setUserName]             = useState('');
+  const [userRole, setUserRole]             = useState('');
+  const [userInitials, setUserInitials]     = useState('U');
+  const [userEmail, setUserEmail]           = useState('');
+  const dropdownRef                         = useRef<HTMLDivElement>(null);
 
-  const currentPath = location.pathname;
-  
-  // Find the matching page title (handle nested routes)
-  const getPageTitle = () => {
-    // Check for exact match first
-    if (pageTitles[currentPath]) {
-      return pageTitles[currentPath];
-    }
-    
-    // Check for nested routes (e.g., /employee-tracking/123)
-    for (const [path, title] of Object.entries(pageTitles)) {
-      if (currentPath.startsWith(path) && path !== '/') {
-        return title;
-      }
-    }
-    
-    return 'Dashboard';
-  };
-
-  const pageTitle = getPageTitle();
+  const breadcrumbs = buildBreadcrumbs(location.pathname);
+  const pageTitle   = breadcrumbs[breadcrumbs.length - 1]?.label ?? 'Dashboard';
 
   useEffect(() => {
-    // Load user data from localStorage
     const user = getUserFromStorage();
     if (user) {
       setUserName(getUserName());
@@ -68,33 +104,22 @@ export const Header: React.FC<HeaderProps> = ({ sidebarCollapsed }) => {
     }
   }, []);
 
-  // Close dropdown when clicking outside
+  // Close dropdown on outside click
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
         setIsDropdownOpen(false);
       }
     };
-
     document.addEventListener('mousedown', handleClickOutside);
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
+    return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
   const handleLogout = () => {
-    // Clear all stored data
     localStorage.removeItem('userjwttoken');
     localStorage.removeItem('user');
-    
-    // Close dropdown
     setIsDropdownOpen(false);
-    
-    // Use window.location.href for a hard redirect to ensure everything is cleared
     window.location.href = '/login';
-    
-    // Alternative: use navigate with replace to prevent going back
-    // navigate('/login', { replace: true });
   };
 
   const handleProfileClick = () => {
@@ -107,18 +132,28 @@ export const Header: React.FC<HeaderProps> = ({ sidebarCollapsed }) => {
     navigate('/settings');
   };
 
-  const toggleDropdown = () => {
-    setIsDropdownOpen(!isDropdownOpen);
-  };
-
   return (
     <header className={`${styles.header} ${sidebarCollapsed ? styles.sidebarCollapsed : ''}`}>
       <div className={styles.headerLeft}>
-        <div className={styles.breadcrumb}>
-          <span className={styles.breadcrumbLink}>Home</span>
-          <ChevronRight size={14} />
-          <span>{pageTitle}</span>
-        </div>
+
+        {/* ── Dynamic Breadcrumb ── */}
+        <nav className={styles.breadcrumb} aria-label="Breadcrumb">
+          {breadcrumbs.map((crumb, index) => (
+            <React.Fragment key={crumb.path}>
+              {index > 0 && (
+                <ChevronRight size={14} className={styles.breadcrumbSeparator} />
+              )}
+              {crumb.isLast ? (
+                <span className={styles.breadcrumbCurrent}>{crumb.label}</span>
+              ) : (
+                <Link to={crumb.path} className={styles.breadcrumbLink}>
+                  {crumb.label}
+                </Link>
+              )}
+            </React.Fragment>
+          ))}
+        </nav>
+
       </div>
 
       <div className={styles.headerRight}>
@@ -137,49 +172,30 @@ export const Header: React.FC<HeaderProps> = ({ sidebarCollapsed }) => {
         </button>
 
         <div className={styles.userMenu} ref={dropdownRef}>
-          <div className={styles.userInfoWrapper} onClick={toggleDropdown}>
-            <div className={styles.avatar}>
-              {userInitials}
-            </div>
+          <div className={styles.userInfoWrapper} onClick={() => setIsDropdownOpen(o => !o)}>
+            <div className={styles.avatar}>{userInitials}</div>
             <div className={styles.userInfo}>
               <span className={styles.userName}>{userName}</span>
-              {/* <span className={styles.userRole}>{userRole}</span> */}
             </div>
-            <ChevronDown 
-              size={16} 
-              className={`${styles.chevron} ${isDropdownOpen ? styles.chevronRotated : ''}`} 
+            <ChevronDown
+              size={16}
+              className={`${styles.chevron} ${isDropdownOpen ? styles.chevronRotated : ''}`}
             />
           </div>
 
-          {/* Dropdown Menu */}
           {isDropdownOpen && (
             <div className={styles.dropdownMenu}>
               <div className={styles.dropdownHeader}>
-                <div className={styles.dropdownAvatar}>
-                  {userInitials}
-                </div>
+                <div className={styles.dropdownAvatar}>{userInitials}</div>
                 <div className={styles.dropdownUserInfo}>
                   <span className={styles.dropdownUserName}>{userName}</span>
-                  <span className={styles.dropdownUserEmail}>
-                    {userEmail}
-                  </span>
+                  <span className={styles.dropdownUserEmail}>{userEmail}</span>
                 </div>
               </div>
-              
+
               <div className={styles.dropdownDivider} />
-              
-              <button className={styles.dropdownItem} onClick={handleProfileClick}>
-                <User size={16} />
-                <span>My Profile</span>
-              </button>
-              
-              <button className={styles.dropdownItem} onClick={handleSettingsClick}>
-                <Settings size={16} />
-                <span>Settings</span>
-              </button>
-              
-              <div className={styles.dropdownDivider} />
-              
+ <div className={styles.dropdownDivider} />
+
               <button className={`${styles.dropdownItem} ${styles.logoutBtn}`} onClick={handleLogout}>
                 <LogOut size={16} />
                 <span>Logout</span>

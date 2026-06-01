@@ -971,3 +971,121 @@
         align-items: flex-start;
     }
 }
+
+/* ─── Add these to your existing Courses.module.css ─────────────────────────── */
+
+/* Label hint (e.g. "PDF or DOCX") */
+.formLabelHint {
+    font-size: 0.78rem;
+    font-weight: 400;
+    color: #9ca3af;
+}
+
+/* ── Curriculum Key: empty/upload state ──────────────────────────────────────── */
+.curriculumKeyUpload {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.35rem;
+    padding: 1.5rem 1rem;
+    border: 2px dashed #d1d5db;
+    border-radius: 10px;
+    cursor: pointer;
+    transition:
+        border-color 0.2s,
+        background 0.2s;
+    background: transparent;
+    width: 100%;
+}
+
+.curriculumKeyUpload:hover {
+    border-color: #6366f1;
+    background: #f5f5ff;
+}
+
+.curriculumKeyUploadIcon {
+    color: #9ca3af;
+    transition: color 0.2s;
+}
+
+.curriculumKeyUpload:hover .curriculumKeyUploadIcon {
+    color: #6366f1;
+}
+
+.curriculumKeyUploadText {
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: #374151;
+}
+
+.curriculumKeyUploadHint {
+    font-size: 0.75rem;
+    color: #9ca3af;
+}
+
+/* ── Curriculum Key: file selected state ─────────────────────────────────────── */
+.curriculumKeyBox {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+}
+
+.curriculumKeyFile {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.6rem 0.875rem;
+    background: #f9fafb;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+}
+
+.curriculumKeyIcon {
+    color: #6366f1;
+    flex-shrink: 0;
+}
+
+.curriculumKeyFileName {
+    flex: 1;
+    font-size: 0.85rem;
+    color: #374151;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.curriculumKeyRemove {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: #ef4444;
+    padding: 2px;
+    border-radius: 4px;
+    flex-shrink: 0;
+    transition: background 0.15s;
+}
+
+.curriculumKeyRemove:hover {
+    background: #fee2e2;
+}
+
+.curriculumKeyReplace {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    font-size: 0.8rem;
+    color: #6366f1;
+    cursor: pointer;
+    width: fit-content;
+    padding: 0.15rem 0;
+    border-bottom: 1px dashed #6366f1;
+    transition: opacity 0.15s;
+}
+
+.curriculumKeyReplace:hover {
+    opacity: 0.75;
+}
