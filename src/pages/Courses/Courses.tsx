@@ -249,6 +249,11 @@ const Courses: React.FC = () => {
         data.append(key, value.toString());
       }
     });
+  if (formData.demoUrl === '') {
+    data.append('clearDemoUrl', 'true');
+  } else if (formData.demoUrl) {
+    data.append('demoUrl', formData.demoUrl);
+  }
 
     learningOutcomesPoints
       .filter(v => v.trim())
@@ -657,7 +662,7 @@ const Courses: React.FC = () => {
                   </div>
                   <div className={styles.formGroup}>
                     <label className={styles.formLabel}>Demo URL <span style={{ color: 'red' }}>*</span></label>
-                    <input type="url" className={styles.formInput} required value={formData.demoUrl} onChange={e => setFormData({ ...formData, demoUrl: e.target.value })} />
+                    <input type="url" className={styles.formInput}  value={formData.demoUrl} onChange={e => setFormData({ ...formData, demoUrl: e.target.value })} />
                   </div>
                   <div className={styles.formGroup}>
                     <label className={styles.formLabel}>Course Price (₹) <span style={{ color: 'red' }}>*</span></label>
