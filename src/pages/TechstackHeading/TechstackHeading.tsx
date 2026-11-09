@@ -1,27 +1,26 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import styles from '../Employees/Employees.module.css';
 import { Button } from '../../components/ui/Button/Button';
 import {
   Search, Plus, ChevronLeft, ChevronRight,
-  X, Trash2, Edit, Hash, Code2,
+  X, Trash2, Edit, Code2, GripVertical, Save,
 } from 'lucide-react';
 import { httpClient } from '../../lib/httpClient';
 import toast from 'react-hot-toast';
-
-interface TechStack {
+  import { useNavigate } from 'react-router-dom';
+interface TechStackHeading {
   _id: string;
   name: string;
+  order: number;
   createdAt: string;
   updatedAt: string;
 }
 
-const emptyForm = () => ({
-  name: '',
-});
+const emptyForm = () => ({ name: '' });
 
-const TechStacks: React.FC = () => {
-  const [techStacks, setTechStacks] = useState<TechStack[]>([]);
-  const [filteredTechStacks, setFilteredTechStacks] = useState<TechStack[]>([]);
+const TechStackHeadings: React.FC = () => {
+  const [techStacks, setTechStacks] = useState<TechStackHeading[]>([]);
+  const [filteredTechStacks, setFilteredTechStacks] = useState<TechStackHeading[]>([]);
   const [loading, setLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
 
@@ -30,8 +29,17 @@ const TechStacks: React.FC = () => {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [formData, setFormData] = useState(emptyForm());
 
+  // Reorder mode state
+  const [reorderMode, setReorderMode] = useState(false);
+  const [reorderedList, setReorderedList] = useState<TechStackHeading[]>([]);
+  const [savingOrder, setSavingOrder] = useState(false);
+
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 8;
+ const navigate = useNavigate();
+  // Drag state
+  const dragIndex = useRef<number | null>(null);
+  const dragOverIndex = useRef<number | null>(null);
 
   useEffect(() => { fetchTechStacks(); }, []);
   useEffect(() => { filterTechStacks(); }, [techStacks, searchQuery]);
@@ -40,9 +48,11 @@ const TechStacks: React.FC = () => {
     setLoading(true);
     try {
       const res = await httpClient.get('/techstacks-heading');
-      setTechStacks(res.data?.techStacks || []);
+      const data: TechStackHeading[] = res.data?.headings || [];
+      setTechStacks(data);
+      setReorderedList([...data]);
     } catch {
-      toast.error('Failed to load tech stacks');
+      toast.error('Failed to load tech stack headings');
     } finally {
       setLoading(false);
     }
@@ -52,24 +62,75 @@ const TechStacks: React.FC = () => {
     let filtered = [...techStacks];
     if (searchQuery) {
       const q = searchQuery.toLowerCase();
-      filtered = filtered.filter(ts =>
-        ts.name.toLowerCase().includes(q)
-      );
+      filtered = filtered.filter(ts => ts.name.toLowerCase().includes(q));
     }
     setFilteredTechStacks(filtered);
     setCurrentPage(1);
   };
 
+  // ── Drag & Drop ──────────────────────────────────────────────────────────
+
+  const handleDragStart = (index: number) => {
+    dragIndex.current = index;
+  };
+
+  const handleDragOver = (e: React.DragEvent, index: number) => {
+    e.preventDefault();
+    dragOverIndex.current = index;
+  };
+
+  const handleDrop = () => {
+    const from = dragIndex.current;
+    const to = dragOverIndex.current;
+    if (from === null || to === null || from === to) return;
+
+    const updated = [...reorderedList];
+    const [moved] = updated.splice(from, 1);
+    updated.splice(to, 0, moved);
+
+    // Re-assign order values
+    const withOrder = updated.map((item, i) => ({ ...item, order: i }));
+    setReorderedList(withOrder);
+    dragIndex.current = null;
+    dragOverIndex.current = null;
+  };
+
+  const handleSaveOrder = async () => {
+    setSavingOrder(true);
+    const loadingToast = toast.loading('Saving order...');
+    try {
+      const items = reorderedList.map((item, index) => ({
+        _id: item._id,
+        order: index,
+      }));
+      await httpClient.put('/techstacks-heading/reorder', { items });
+      toast.success('Order saved successfully!', { id: loadingToast });
+      setReorderMode(false);
+      fetchTechStacks();
+    } catch {
+      toast.error('Failed to save order', { id: loadingToast });
+    } finally {
+      setSavingOrder(false);
+    }
+  };
+
+  const handleCancelReorder = () => {
+    setReorderedList([...techStacks]);
+    setReorderMode(false);
+  };
+
+  // ── CRUD ─────────────────────────────────────────────────────────────────
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const loadingToast = toast.loading(isEditing ? 'Updating tech stack...' : 'Creating tech stack...');
+    const loadingToast = toast.loading(isEditing ? 'Updating heading...' : 'Creating heading...');
     try {
       if (isEditing && selectedId) {
         await httpClient.put(`/techstacks-heading/${selectedId}`, formData);
-        toast.success('Tech stack updated successfully!', { id: loadingToast });
+        toast.success('Heading updated successfully!', { id: loadingToast });
       } else {
         await httpClient.post('/techstacks-heading', formData);
-        toast.success('Tech stack created successfully!', { id: loadingToast });
+        toast.success('Heading created successfully!', { id: loadingToast });
       }
       setShowModal(false);
       resetForm();
@@ -81,22 +142,20 @@ const TechStacks: React.FC = () => {
 
   const handleDelete = async (id: string, name: string) => {
     if (!window.confirm(`Are you sure you want to delete "${name}"?`)) return;
-    const loadingToast = toast.loading('Deleting tech stack...');
+    const loadingToast = toast.loading('Deleting heading...');
     try {
-      await httpClient.delete(`/techstacks/${id}`);
-      toast.success('Tech stack deleted successfully!', { id: loadingToast });
+      await httpClient.delete(`/techstacks-heading/${id}`);
+      toast.success('Heading deleted successfully!', { id: loadingToast });
       fetchTechStacks();
-    } catch {
-      toast.error('Failed to delete tech stack', { id: loadingToast });
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || 'Failed to delete heading', { id: loadingToast });
     }
   };
 
-  const openEditModal = (techStack: TechStack) => {
+  const openEditModal = (ts: TechStackHeading) => {
     setIsEditing(true);
-    setSelectedId(techStack._id);
-    setFormData({
-      name: techStack.name,
-    });
+    setSelectedId(ts._id);
+    setFormData({ name: ts.name });
     setShowModal(true);
   };
 
@@ -106,11 +165,17 @@ const TechStacks: React.FC = () => {
     setSelectedId(null);
   };
 
+  // ── Pagination ────────────────────────────────────────────────────────────
+
   const totalPages = Math.max(1, Math.ceil(filteredTechStacks.length / itemsPerPage));
   const paginatedData = filteredTechStacks.slice(
     (currentPage - 1) * itemsPerPage,
     currentPage * itemsPerPage
   );
+
+  // ── Render ────────────────────────────────────────────────────────────────
+
+  const displayList = reorderMode ? reorderedList : paginatedData;
 
   return (
     <div className={styles.employees}>
@@ -118,43 +183,94 @@ const TechStacks: React.FC = () => {
       {/* Header */}
       <div className={styles.header}>
         <div className={styles.headerLeft}>
-          <h1>Tech Stacks</h1>
-          <p>Manage technology stacks used in courses and projects</p>
+          <h1>Tech Stack Headings</h1>
+          <p>Manage category headings and their display order</p>
         </div>
         <div className={styles.toolbar}>
-          <div className={styles.filtersContainer}>
-            <div className={styles.searchBox}>
-              <Search size={18} className={styles.searchIcon} />
-              <input
-                type="text"
-                placeholder="Search by tech stack name..."
-                className={styles.searchInput}
-                value={searchQuery}
-                onChange={e => setSearchQuery(e.target.value)}
-              />
+          {!reorderMode && (
+            <div className={styles.filtersContainer}>
+              <div className={styles.searchBox}>
+                <Search size={18} className={styles.searchIcon} />
+                <input
+                  type="text"
+                  placeholder="Search by heading name..."
+                  className={styles.searchInput}
+                  value={searchQuery}
+                  onChange={e => setSearchQuery(e.target.value)}
+                />
+              </div>
+              {searchQuery && (
+                <button className={styles.clearFiltersBtn} onClick={() => setSearchQuery('')}>
+                  <X size={16} />
+                </button>
+              )}
             </div>
-            {searchQuery && (
-              <button className={styles.clearFiltersBtn} onClick={() => setSearchQuery('')}>
-                <X size={16} />
+          )}
+
+          {!reorderMode ? (
+            <>
+              <button
+                className={styles.addBtn}
+                style={{ background: '#7c3aed', marginRight: 8 }}
+                onClick={() => setReorderMode(true)}
+              >
+                <GripVertical size={18} /> Manage Order
               </button>
-            )}
-          </div>
-          <button
-            className={styles.addBtn}
-            onClick={() => { resetForm(); setShowModal(true); }}
-          >
-            <Plus size={18} /> Add Tech Stack
-          </button>
+              <button
+                className={styles.addBtn}
+                onClick={() => { resetForm(); setShowModal(true); }}
+              >
+                <Plus size={18} /> Add Heading
+              </button>
+            </>
+          ) : (
+            <>
+              <button
+                className={styles.addBtn}
+                style={{ background: '#6b7280', marginRight: 8 }}
+                onClick={handleCancelReorder}
+              >
+                <X size={18} /> Cancel
+              </button>
+              <button
+                className={styles.addBtn}
+                style={{ background: '#059669' }}
+                onClick={handleSaveOrder}
+                disabled={savingOrder}
+              >
+                <Save size={18} /> Save Order
+              </button>
+            </>
+          )}
         </div>
       </div>
+
+      {/* Reorder info banner */}
+      {reorderMode && (
+        <div style={{
+          background: '#fffbeb',
+          border: '1px solid #fbbf24',
+          borderRadius: 8,
+          padding: '10px 16px',
+          marginBottom: 16,
+          display: 'flex',
+          alignItems: 'center',
+          gap: 8,
+          color: '#92400e',
+          fontSize: 14,
+        }}>
+          <GripVertical size={16} />
+          <span>Drag and drop rows to reorder, then click <strong>Save Order</strong>.</span>
+        </div>
+      )}
 
       {/* Stats */}
       <div className={styles.statsBar}>
         <div className={styles.statItem}>
-          <span className={styles.statLabel}>Total Tech Stacks:</span>
+          <span className={styles.statLabel}>Total Headings:</span>
           <span className={styles.statValue}>{techStacks.length}</span>
         </div>
-        {searchQuery && (
+        {searchQuery && !reorderMode && (
           <div className={styles.statItem}>
             <span className={styles.statLabel}>Filtered:</span>
             <span className={styles.statValue}>{filteredTechStacks.length}</span>
@@ -167,32 +283,59 @@ const TechStacks: React.FC = () => {
         <table className={styles.table}>
           <thead>
             <tr>
-              <th>#</th>
-              <th>Tech Stack Name</th>
+              {reorderMode && <th style={{ width: 40 }}></th>}
+              <th>Order</th>
+              <th>Heading Name</th>
               <th>Created At</th>
-              <th>Actions</th>
+              {!reorderMode && <th>Actions</th>}
             </tr>
           </thead>
           <tbody>
             {loading ? (
               <tr>
-                <td colSpan={4} style={{ textAlign: 'center', padding: '2rem' }}>
-                  Loading tech stacks...
+                <td colSpan={reorderMode ? 4 : 4} style={{ textAlign: 'center', padding: '2rem' }}>
+                  Loading headings...
                 </td>
               </tr>
-            ) : paginatedData.length === 0 ? (
+            ) : displayList.length === 0 ? (
               <tr>
                 <td colSpan={4} style={{ textAlign: 'center', padding: '2rem', color: '#6b7280' }}>
-                  {searchQuery ? 'No tech stacks match your search' : 'No tech stacks found. Click "Add Tech Stack" to create one.'}
+                  {searchQuery ? 'No headings match your search' : 'No headings found. Click "Add Heading" to create one.'}
                 </td>
               </tr>
-            ) : paginatedData.map((techStack, index) => (
-              <tr key={techStack._id}>
+            ) : displayList.map((ts, index) => (
+        
+  <tr
+    key={ts._id}
+    onClick={() => !reorderMode && navigate(`/tech-stack-headings/${ts._id}/tech-stacks`)}
+    draggable={reorderMode}
+    onDragStart={() => reorderMode && handleDragStart(index)}
+    onDragOver={e => reorderMode && handleDragOver(e, index)}
+    onDrop={() => reorderMode && handleDrop()}
+    style={{
+      cursor: reorderMode ? 'grab' : 'pointer',   // <-- pointer instead of default
+      background: reorderMode ? (index % 2 === 0 ? '#f9fafb' : 'white') : undefined,
+      transition: 'background 0.15s',
+    }}
+  >
+                {/* Drag handle */}
+                {reorderMode && (
+                  <td style={{ color: '#9ca3af', textAlign: 'center' }}>
+                    <GripVertical size={18} />
+                  </td>
+                )}
+
+                {/* Order badge */}
                 <td>
-                  <span className={styles.orgBadge} style={{ background: '#e0e7ff', color: '#4338ca' }}>
-                    {(currentPage - 1) * itemsPerPage + index + 1}
+                  <span
+                    className={styles.orgBadge}
+                    style={{ background: '#e0e7ff', color: '#4338ca', minWidth: 32, display: 'inline-block', textAlign: 'center' }}
+                  >
+                    {reorderMode ? index + 1 : (ts.order ?? index) + 1}
                   </span>
                 </td>
+
+                {/* Name */}
                 <td>
                   <div className={styles.employeeCell}>
                     <div
@@ -206,48 +349,53 @@ const TechStacks: React.FC = () => {
                       <Code2 size={16} />
                     </div>
                     <div className={styles.employeeInfo}>
-                      <span className={styles.employeeName}>{techStack.name}</span>
-                      <span className={styles.employeeEmail}>
-                        ID: {techStack._id.slice(-8)}
-                      </span>
+                      <span className={styles.employeeName}>{ts.name}</span>
+                      <span className={styles.employeeEmail}>ID: {ts._id.slice(-8)}</span>
                     </div>
                   </div>
                 </td>
+
+                {/* Date */}
                 <td>
                   <div className={styles.deptText}>
-                    {new Date(techStack.createdAt).toLocaleDateString('en-IN')}
+                    {new Date(ts.createdAt).toLocaleDateString('en-IN')}
                   </div>
                   <div className={styles.roleText}>
-                    {new Date(techStack.createdAt).toLocaleTimeString()}
+                    {new Date(ts.createdAt).toLocaleTimeString()}
                   </div>
                 </td>
-                <td>
-                  <div className={styles.actionButtons}>
+
+                {/* Actions — hidden in reorder mode */}
+                {!reorderMode && (
+                  <td>
+                    <div className={styles.actionButtons}>
                     <Edit
-                      size={18}
-                      onClick={() => openEditModal(techStack)}
-                      className={styles.editIcon}
-                      title="Edit Tech Stack"
-                    />
-                    <Trash2
-                      size={18}
-                      onClick={() => handleDelete(techStack._id, techStack.name)}
-                      className={styles.deleteIcon}
-                      title="Delete Tech Stack"
-                    />
-                  </div>
-                </td>
+     size={18}
+     onClick={(e) => { e.stopPropagation(); openEditModal(ts); }}
+     className={styles.editIcon}
+     title="Edit Heading"
+   />
+   <Trash2
+     size={18}
+     onClick={(e) => { e.stopPropagation(); handleDelete(ts._id, ts.name); }}
+    className={styles.deleteIcon}
+     title="Delete Heading"
+   />
+                    </div>
+                  </td>
+                )}
               </tr>
             ))}
           </tbody>
         </table>
 
-        {filteredTechStacks.length > 0 && (
+        {/* Pagination — hidden in reorder mode */}
+        {!reorderMode && filteredTechStacks.length > itemsPerPage && (
           <div className={styles.pagination}>
             <div className={styles.paginationInfo}>
               Showing {(currentPage - 1) * itemsPerPage + 1} to{' '}
               {Math.min(currentPage * itemsPerPage, filteredTechStacks.length)} of{' '}
-              {filteredTechStacks.length} tech stacks
+              {filteredTechStacks.length} headings
             </div>
             <div className={styles.paginationControls}>
               <button className={styles.pageBtn} disabled={currentPage === 1} onClick={() => setCurrentPage(p => p - 1)}>
@@ -269,42 +417,39 @@ const TechStacks: React.FC = () => {
             <div className={styles.modalHeader}>
               <h2 className={styles.modalTitle}>
                 <Code2 size={20} style={{ marginRight: 8 }} />
-                {isEditing ? 'Edit' : 'Add'} Tech Stack
+                {isEditing ? 'Edit' : 'Add'} Heading
               </h2>
-              <X size={20} onClick={() => setShowModal(false)} style={{ cursor: 'pointer' }} />
+              <X size={20} onClick={() => { setShowModal(false); resetForm(); }} style={{ cursor: 'pointer' }} />
             </div>
 
             <form onSubmit={handleSubmit}>
-              <div className={styles.modalBody} style={{ maxHeight: '60vh', overflowY: 'auto' }}>
+              <div className={styles.modalBody}>
                 <div className={styles.formGrid}>
-
-                  {/* Tech Stack Name */}
                   <div className={styles.formGroup} style={{ gridColumn: '1 / -1' }}>
                     <label className={styles.formLabel}>
-                      Tech Stack Name <span style={{ color: 'red' }}>*</span>
+                      Heading Name <span style={{ color: 'red' }}>*</span>
                     </label>
                     <input
                       type="text"
                       className={styles.formInput}
                       required
-                      placeholder="e.g., React, Node.js, Python, MongoDB"
+                      placeholder="e.g., Big Data Processing, Cloud Computing"
                       value={formData.name}
                       onChange={e => setFormData({ ...formData, name: e.target.value })}
                     />
                     <small style={{ color: '#6b7280', marginTop: 4, display: 'block' }}>
-                      Enter a technology name (minimum 2 characters)
+                      Minimum 2 characters. New headings are added at the end of the order.
                     </small>
                   </div>
-
                 </div>
               </div>
 
               <div className={styles.modalFooter}>
-                <Button variant="secondary" type="button" onClick={() => setShowModal(false)}>
+                <Button variant="secondary" type="button" onClick={() => { setShowModal(false); resetForm(); }}>
                   Cancel
                 </Button>
                 <Button type="submit" variant="primary">
-                  {isEditing ? 'Update' : 'Save'} Tech Stack
+                  {isEditing ? 'Update' : 'Save'} Heading
                 </Button>
               </div>
             </form>
@@ -315,4 +460,4 @@ const TechStacks: React.FC = () => {
   );
 };
 
-export default TechStacks;
+export default TechStackHeadings;

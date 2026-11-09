@@ -4,7 +4,7 @@ import {
   BookOpen, Users, UserCheck, Layers, TrendingUp, TrendingDown,
   IndianRupee, Calendar, Clock, Award, Radio, BarChart2,
   RefreshCw, ArrowUpRight, ArrowDownRight, Minus,
-  GraduationCap, Zap, Star,
+  GraduationCap, Zap, Star, CheckCircle2, XCircle,
 } from 'lucide-react';
 import { httpClient } from '../../lib/httpClient';
 import toast from 'react-hot-toast';
@@ -13,6 +13,8 @@ import toast from 'react-hot-toast';
 
 interface Stats {
   totalCourses: number;
+  activeCourses: number;
+  inactiveCourses: number;
   totalStudents: number;
   totalTrainers: number;
   totalBatches: number;
@@ -70,6 +72,7 @@ interface PopularCourse {
   thumbnail: string;
   price: number;
   enrollmentCount: number;
+  isActive?: boolean;
 }
 
 interface ChartPoint {
@@ -115,12 +118,13 @@ interface StatCardProps {
   label: string;
   value: string | number;
   sub?: string;
+  subNode?: React.ReactNode;
   growth?: number;
   accent: string;
   accentLight: string;
 }
 
-const StatCard: React.FC<StatCardProps> = ({ icon, label, value, sub, growth, accent, accentLight }) => (
+const StatCard: React.FC<StatCardProps> = ({ icon, label, value, sub, subNode, growth, accent, accentLight }) => (
   <div style={{
     background: '#fff',
     border: '1px solid #e5e7eb',
@@ -161,6 +165,8 @@ const StatCard: React.FC<StatCardProps> = ({ icon, label, value, sub, growth, ac
             </span>
             <span style={{ color: '#9ca3af' }}>vs last month</span>
           </>
+        ) : subNode ? (
+          subNode
         ) : (
           <span style={{ color: '#9ca3af' }}>{sub}</span>
         )}
@@ -320,7 +326,16 @@ const Dashboard: React.FC = () => {
           icon={<BookOpen size={22} />}
           label="Total Courses"
           value={stats.totalCourses}
-          sub="Published courses"
+          subNode={
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <span style={{ display: 'flex', alignItems: 'center', gap: 3, color: '#16a34a', fontWeight: 600 }}>
+                <CheckCircle2 size={12} /> {stats.activeCourses} active
+              </span>
+              <span style={{ display: 'flex', alignItems: 'center', gap: 3, color: '#9ca3af', fontWeight: 600 }}>
+                <XCircle size={12} /> {stats.inactiveCourses} inactive
+              </span>
+            </div>
+          }
           accent="#6366f1" accentLight="#e0e7ff"
         />
         <StatCard
@@ -449,8 +464,18 @@ const Dashboard: React.FC = () => {
                   {i + 1}
                 </div>
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: 13, fontWeight: 600, color: '#111827', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                    {course.title}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <div style={{ fontSize: 13, fontWeight: 600, color: '#111827', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                      {course.title}
+                    </div>
+                    {course.isActive === false && (
+                      <span style={{
+                        fontSize: 9, fontWeight: 700, padding: '1px 6px', borderRadius: 99,
+                        background: '#f3f4f6', color: '#6b7280', flexShrink: 0, textTransform: 'uppercase',
+                      }}>
+                        Inactive
+                      </span>
+                    )}
                   </div>
                   <div style={{ fontSize: 11, color: '#6b7280', marginTop: 1 }}>
                     {fmtRupee(course.price)}

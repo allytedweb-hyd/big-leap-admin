@@ -26,6 +26,8 @@ import Batches from './pages/Batches/Batches';
 import ManageBatches from './pages/Batches/ManageBatch';
 import Admins from './pages/Admins/Admins';
 import TechnologyPage from './pages/Technology/Technology';
+import Quiz from './pages/Quiz/QuizManagement';
+import ChapterQuiz from './pages/Quiz/ChapterQuiz';
 
 const App = () => {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(!!localStorage.getItem("userjwttoken"));
@@ -88,13 +90,16 @@ const App = () => {
           <Route path="payroll" element={<Placeholder title="Payroll" description="View payslips." />} />
           <Route path="settings" element={<Placeholder title="Settings" description="Manage preferences." />} />
           <Route path="techstack-heading" element={<TechstackHeading />} />
-          <Route path="techstack" element={<Techstack />} />
+          {/* <Route path="techstack" element={<Techstack />} /> */}
+          <Route path="/tech-stack-headings/:headingId/tech-stacks" element={<Techstack />} />
           <Route path="trainers" element={<Trainers />} />
           <Route path="students-enrollments" element={<StudentEnrollments />} />
           <Route path="batches" element={<Batches />} />
           <Route path="manage-batches/:batchId" element={<ManageBatches />} />
           <Route path="manage-admins" element={<Admins />} />
           <Route path="manage-technology" element={<TechnologyPage />} />
+          <Route path="/admin/courses/:courseId/quiz" element={<Quiz />} />
+          <Route path="/admin/courses/:courseId/chapters/:chapterId/quiz" element={<ChapterQuiz />} />
         </Route>
 
         <Route path="*" element={<Navigate to={isAuthenticated ? "/" : "/login"} replace />} />

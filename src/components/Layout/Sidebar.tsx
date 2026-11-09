@@ -196,8 +196,8 @@ export const Sidebar: React.FC<SidebarProps> = ({ collapsed, onToggle }) => {
             isGroupActive={isTechActive}
             onToggle={() => setIsTechOpen(o => !o)}
           >
-            <DropdownLink to="/techstack-heading" icon={<Heading size={16} />} label="Tech Stack Heading" />
-            <DropdownLink to="/techstack"         icon={<Code2 size={16} />}   label="Tech Stack" />
+            <DropdownLink to="/techstack-heading" icon={<Heading size={16} />} label="Tech Stack" />
+        
           </NavDropdown>
 
           {/* Master */}

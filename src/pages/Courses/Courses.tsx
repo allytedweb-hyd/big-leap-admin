@@ -5,10 +5,12 @@ import { Button } from '../../components/ui/Button/Button';
 import {
   Search, Plus, ChevronLeft, ChevronRight,
   X, Trash2, Edit, Camera, Filter, BookOpen,
-  ChevronDown, ChevronUp, Video, Minus, FileText, Radio
+  ChevronDown, ChevronUp, Video, Minus, FileText, HelpCircle
 } from 'lucide-react';
 import { httpClient, imgUrl } from '../../lib/httpClient';
 import toast from 'react-hot-toast';
+import Swal from 'sweetalert2';
+import { useNavigate } from 'react-router-dom';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -17,7 +19,7 @@ interface Lesson {
   videoUrl: string;
   duration: number | string;
   liveSessionLink: string;
-  LiveSessionDate: string; // ISO string for datetime-local input
+  LiveSessionDate: string; // datetime-local value
 }
 
 interface Chapter {
@@ -28,21 +30,22 @@ interface Chapter {
 interface Course {
   _id: string;
   technology?: { _id: string; name: string };
-  title: string;
-  descriptionOne: string;
-  descriptionTwo: string;
-  demoUrl: string;
-  learningOutcomesDescription: string;
-  learningOutcomesPoints: string[];
-  curriculum: Chapter[];
-  coursePrice: number;
-  hoursOfContent: number;
-  modules: number;
-  projects: number;
-  keyHighlights: string[];
-  courseThumbnailImage: string;
-  curriculumKey: string;
-  createdAt: string;
+  title?: string;
+  descriptionOne?: string;
+  descriptionTwo?: string;
+  demoUrl?: string;
+  learningOutcomesDescription?: string;
+  learningOutcomesPoints?: string[];
+  curriculum?: Chapter[];
+  coursePrice?: number;
+  hoursOfContent?: number;
+  modules?: number;
+  projects?: number;
+  keyHighlights?: string[];
+  courseThumbnailImage?: string;
+  curriculumKey?: string;
+  createdAt?: string;
+  isActive: boolean;
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -70,18 +73,26 @@ const emptyForm = () => ({
   projects: '' as number | string,
 });
 
-// Converts a Date/ISO string from DB → datetime-local value (YYYY-MM-DDTHH:mm)
+// DB date → datetime-local value (YYYY-MM-DDTHH:mm) in the user's LOCAL time
 const toDatetimeLocal = (val?: string | Date): string => {
   if (!val) return '';
   const d = new Date(val as string);
   if (isNaN(d.getTime())) return '';
-  // datetime-local requires YYYY-MM-DDTHH:mm
-  return d.toISOString().slice(0, 16);
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 };
+
+const isBlankLesson = (ls: Lesson) =>
+  !ls.title.trim() &&
+  !ls.videoUrl.trim() &&
+  !String(ls.duration ?? '').trim() &&
+  !ls.liveSessionLink.trim() &&
+  !ls.LiveSessionDate;
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
 const Courses: React.FC = () => {
+  const navigate = useNavigate();
   const [courses, setCourses] = useState<Course[]>([]);
   const [filteredCourses, setFilteredCourses] = useState<Course[]>([]);
   const [technologies, setTechnologies] = useState<any[]>([]);
@@ -129,6 +140,17 @@ const Courses: React.FC = () => {
     }
   };
 
+  const toggleStatus = async (id: string) => {
+    try {
+      const res = await httpClient.patch(`/courses/${id}/toggle-status`);
+      const updated = res.data?.course;
+      setCourses(prev => prev.map(c => c._id === id ? { ...c, isActive: updated.isActive } : c));
+      toast.success(res.data?.message || 'Status updated');
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || 'Failed to update status');
+    }
+  };
+
   const fetchCourses = async () => {
     setLoading(true);
     try {
@@ -146,9 +168,10 @@ const Courses: React.FC = () => {
   const filterCourses = () => {
     let filtered = [...courses];
     if (selectedTech) filtered = filtered.filter(c => c.technology?._id === selectedTech);
-    if (searchQuery) filtered = filtered.filter(c =>
-      c.title.toLowerCase().includes(searchQuery.toLowerCase())
-    );
+    if (searchQuery) {
+      const q = searchQuery.toLowerCase();
+      filtered = filtered.filter(c => (c.title || '').toLowerCase().includes(q));
+    }
     setFilteredCourses(filtered);
     setCurrentPage(1);
   };
@@ -180,8 +203,24 @@ const Courses: React.FC = () => {
 
   const addChapter = () => setCurriculum(prev => [...prev, emptyChapter()]);
 
-  const removeChapter = (ci: number) =>
-    setCurriculum(prev => prev.filter((_, i) => i !== ci));
+  const removeChapter = async (ci: number) => {
+    const result = await Swal.fire({
+      title: 'Remove this chapter?',
+      text: `Chapter ${ci + 1} and all its lessons will be removed.`,
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonText: 'Yes, remove it',
+      cancelButtonText: 'Cancel',
+      confirmButtonColor: '#dc2626',
+      cancelButtonColor: '#6b7280',
+      reverseButtons: true,
+    });
+
+    if (result.isConfirmed) {
+      setCurriculum(prev => prev.filter((_, i) => i !== ci));
+      toast.success(`Chapter ${ci + 1} removed`);
+    }
+  };
 
   const updateChapterTitle = (ci: number, value: string) =>
     setCurriculum(prev => prev.map((ch, i) => i === ci ? { ...ch, title: value } : ch));
@@ -191,10 +230,26 @@ const Courses: React.FC = () => {
       i === ci ? { ...ch, lessons: [...ch.lessons, emptyLesson()] } : ch
     ));
 
-  const removeLesson = (ci: number, li: number) =>
-    setCurriculum(prev => prev.map((ch, i) =>
-      i === ci ? { ...ch, lessons: ch.lessons.filter((_, j) => j !== li) } : ch
-    ));
+  const removeLesson = async (ci: number, li: number) => {
+    const result = await Swal.fire({
+      title: 'Remove this lesson?',
+      text: `Lesson ${li + 1} in Chapter ${ci + 1} will be removed.`,
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonText: 'Yes, remove it',
+      cancelButtonText: 'Cancel',
+      confirmButtonColor: '#dc2626',
+      cancelButtonColor: '#6b7280',
+      reverseButtons: true,
+    });
+
+    if (result.isConfirmed) {
+      setCurriculum(prev => prev.map((ch, i) =>
+        i === ci ? { ...ch, lessons: ch.lessons.filter((_, j) => j !== li) } : ch
+      ));
+      toast.success(`Lesson ${li + 1} removed`);
+    }
+  };
 
   const updateLesson = (ci: number, li: number, field: keyof Lesson, value: string) =>
     setCurriculum(prev => prev.map((ch, i) =>
@@ -220,63 +275,50 @@ const Courses: React.FC = () => {
   const updateHighlight = (i: number, val: string) =>
     setKeyHighlights(prev => prev.map((v, idx) => idx === i ? val : v));
 
-  // ─── Submit ──────────────────────────────────────────────────────────────────
+  // ─── Submit (no validation — empty fields are sent as-is) ────────────────────
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!selectedFile && !isEditing) {
-      toast.error('Course thumbnail image is required.');
-      return;
-    }
-
-    for (let ci = 0; ci < curriculum.length; ci++) {
-      if (!curriculum[ci].title.trim()) {
-        toast.error(`Chapter ${ci + 1} title is required.`); return;
-      }
-      for (let li = 0; li < curriculum[ci].lessons.length; li++) {
-        if (!curriculum[ci].lessons[li].title.trim()) {
-          toast.error(`Lesson ${li + 1} title in Chapter ${ci + 1} is required.`); return;
-        }
-      }
-    }
-
     const loadingToast = toast.loading(isEditing ? 'Updating course...' : 'Creating course...');
     const data = new FormData();
 
+    // Every simple field is always sent (even when empty) so that clearing a
+    // field in the edit form actually clears it in the database.
     Object.entries(formData).forEach(([key, value]) => {
-      if (value !== null && value !== undefined && value !== '') {
-        data.append(key, value.toString());
-      }
+      data.append(key, value === null || value === undefined ? '' : String(value).trim());
     });
-  if (formData.demoUrl === '') {
-    data.append('clearDemoUrl', 'true');
-  } else if (formData.demoUrl) {
-    data.append('demoUrl', formData.demoUrl);
-  }
 
-    learningOutcomesPoints
-      .filter(v => v.trim())
-      .forEach(v => data.append('learningOutcomesPoints[]', v));
+    // Arrays are sent as JSON strings so an empty list ("[]") can be sent too
+    data.append(
+      'learningOutcomesPoints',
+      JSON.stringify(learningOutcomesPoints.map(v => v.trim()).filter(Boolean))
+    );
+    data.append(
+      'keyHighlights',
+      JSON.stringify(keyHighlights.map(v => v.trim()).filter(Boolean))
+    );
 
-    keyHighlights
-      .filter(v => v.trim())
-      .forEach(v => data.append('keyHighlights[]', v));
-
-    // Curriculum as JSON — includes liveSessionLink and LiveSessionDate
-    data.append('curriculum', JSON.stringify(
-      curriculum.map(ch => ({
-        title: ch.title,
-        lessons: ch.lessons.map(ls => ({
-          title: ls.title,
-          videoUrl: ls.videoUrl,
-          duration: ls.duration ? Number(ls.duration) : 0,
-          liveSessionLink: ls.liveSessionLink || '',
-          // Send ISO string if set, otherwise omit
-          ...(ls.LiveSessionDate ? { LiveSessionDate: new Date(ls.LiveSessionDate).toISOString() } : {}),
-        })),
+    // Curriculum: drop completely blank lessons/chapters, keep everything else
+    const cleanedCurriculum = curriculum
+      .map(ch => ({
+        title: ch.title.trim(),
+        lessons: ch.lessons
+          .filter(ls => !isBlankLesson(ls))
+          .map(ls => {
+            const date = ls.LiveSessionDate ? new Date(ls.LiveSessionDate) : null;
+            return {
+              title: ls.title.trim(),
+              videoUrl: ls.videoUrl.trim(),
+              duration: Number(ls.duration) || 0,
+              liveSessionLink: ls.liveSessionLink.trim(),
+              ...(date && !isNaN(date.getTime()) ? { LiveSessionDate: date.toISOString() } : {}),
+            };
+          }),
       }))
-    ));
+      .filter(ch => ch.title || ch.lessons.length > 0);
+
+    data.append('curriculum', JSON.stringify(cleanedCurriculum));
 
     if (selectedFile) data.append('courseThumbnailImage', selectedFile);
     if (curriculumKeyFile) data.append('curriculumKey', curriculumKeyFile);
@@ -303,7 +345,20 @@ const Courses: React.FC = () => {
   // ─── Delete ──────────────────────────────────────────────────────────────────
 
   const handleDelete = async (id: string) => {
-    if (!window.confirm('Are you sure you want to delete this course?')) return;
+    const result = await Swal.fire({
+      title: 'Delete this course?',
+      text: 'This action cannot be undone.',
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonText: 'Yes, delete it',
+      cancelButtonText: 'Cancel',
+      confirmButtonColor: '#dc2626',
+      cancelButtonColor: '#6b7280',
+      reverseButtons: true,
+    });
+
+    if (!result.isConfirmed) return;
+
     const loadingToast = toast.loading('Deleting course...');
     try {
       await httpClient.delete(`/courses/${id}`);
@@ -321,23 +376,23 @@ const Courses: React.FC = () => {
     setSelectedId(course._id);
     setFormData({
       technology: course.technology?._id || '',
-      title: course.title,
-      descriptionOne: course.descriptionOne,
-      demoUrl: course.demoUrl,
-      descriptionTwo: course.descriptionTwo,
-      learningOutcomesDescription: course.learningOutcomesDescription,
-      coursePrice: course.coursePrice,
-      hoursOfContent: course.hoursOfContent,
-      modules: course.modules,
-      projects: course.projects,
+      title: course.title ?? '',
+      descriptionOne: course.descriptionOne ?? '',
+      demoUrl: course.demoUrl ?? '',
+      descriptionTwo: course.descriptionTwo ?? '',
+      learningOutcomesDescription: course.learningOutcomesDescription ?? '',
+      coursePrice: course.coursePrice ?? '',
+      hoursOfContent: course.hoursOfContent ?? '',
+      modules: course.modules ?? '',
+      projects: course.projects ?? '',
     });
     setCurriculum(
       course.curriculum?.length
         ? course.curriculum.map(ch => ({
-            title: ch.title,
+            title: ch.title ?? '',
             lessons: ch.lessons?.length
               ? ch.lessons.map(ls => ({
-                  title: ls.title,
+                  title: ls.title ?? '',
                   videoUrl: ls.videoUrl || '',
                   duration: ls.duration || '',
                   liveSessionLink: ls.liveSessionLink || '',
@@ -465,14 +520,15 @@ const Courses: React.FC = () => {
               <th>Technology</th>
               <th>Price</th>
               <th>Content</th>
-              <th>Modules / Projects</th>
+              <th>Modules &amp; Projects</th>
+              <th>Status</th>
               <th>Actions</th>
             </tr>
           </thead>
           <tbody>
             {loading ? (
               <tr>
-                <td colSpan={6} style={{ textAlign: 'center', padding: '2rem' }}>
+                <td colSpan={7} style={{ textAlign: 'center', padding: '2rem' }}>
                   <div className="flex justify-center items-center">
                     <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
                     <span className="ml-2">Loading courses...</span>
@@ -481,7 +537,7 @@ const Courses: React.FC = () => {
               </tr>
             ) : paginatedData.length === 0 ? (
               <tr>
-                <td colSpan={6} style={{ textAlign: 'center', padding: '2rem' }}>
+                <td colSpan={7} style={{ textAlign: 'center', padding: '2rem' }}>
                   <div className="text-gray-500">
                     {selectedTech ? 'No courses found for this technology' : 'No courses found'}
                   </div>
@@ -498,7 +554,7 @@ const Courses: React.FC = () => {
                       {course.courseThumbnailImage ? (
                         <img
                           src={`${imgUrl}/courses/${course.courseThumbnailImage}`}
-                          alt={course.title}
+                          alt={course.title || 'Course thumbnail'}
                           style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                           onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }}
                         />
@@ -509,25 +565,61 @@ const Courses: React.FC = () => {
                       )}
                     </div>
                     <div className={styles.employeeInfo}>
-                      <span className={styles.employeeName}>{course.title}</span>
+                      <span className={styles.employeeName}>{course.title || 'Untitled course'}</span>
                       <span className={styles.employeeEmail}>
-                        {course.curriculum?.length || 0} chapters · {course.hoursOfContent}h content
+                        {course.curriculum?.length || 0} chapters · {course.hoursOfContent ?? 0}h content
                       </span>
                     </div>
                   </div>
                 </td>
                 <td><span className={styles.orgBadge}>{course.technology?.name || 'N/A'}</span></td>
-                <td><strong>₹{course.coursePrice?.toLocaleString()}</strong></td>
+                <td><strong>₹{(course.coursePrice ?? 0).toLocaleString()}</strong></td>
                 <td>
-                  <div className={styles.deptText}>{course.hoursOfContent}h content</div>
+                  <div className={styles.deptText}>{course.hoursOfContent ?? 0}h content</div>
                   <div className={styles.roleText}>{course.curriculum?.length || 0} chapters</div>
                 </td>
                 <td>
-                  <div className={styles.deptText}>{course.modules} modules</div>
-                  <div className={styles.roleText}>{course.projects} projects</div>
+                  <div className={styles.deptText}>{course.modules ?? 0} modules</div>
+                  <div className={styles.roleText}>{course.projects ?? 0} projects</div>
+                </td>
+                <td>
+                  <button
+                    type="button"
+                    onClick={() => toggleStatus(course._id)}
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: 6,
+                      padding: '4px 10px',
+                      borderRadius: 999,
+                      border: 'none',
+                      cursor: 'pointer',
+                      fontSize: 12,
+                      fontWeight: 600,
+                      background: course.isActive ? '#dcfce7' : '#fee2e2',
+                      color: course.isActive ? '#16a34a' : '#dc2626',
+                    }}
+                    title={course.isActive ? 'Click to deactivate' : 'Click to activate'}
+                  >
+                    <span
+                      style={{
+                        width: 7,
+                        height: 7,
+                        borderRadius: '50%',
+                        background: course.isActive ? '#16a34a' : '#dc2626',
+                      }}
+                    />
+                    {course.isActive ? 'Active' : 'Inactive'}
+                  </button>
                 </td>
                 <td>
                   <div className={styles.actionButtons}>
+                    <HelpCircle
+                      size={18}
+                      onClick={() => navigate(`/admin/courses/${course._id}/quiz`)}
+                      className={styles.editIcon}
+                      style={{ cursor: 'pointer' }}
+                    />
                     <Edit size={18} onClick={() => openEditModal(course)} className={styles.editIcon} />
                     <Trash2 size={18} onClick={() => handleDelete(course._id)} className={styles.deleteIcon} />
                   </div>
@@ -567,7 +659,8 @@ const Courses: React.FC = () => {
               <X size={20} onClick={() => setShowModal(false)} style={{ cursor: 'pointer' }} />
             </div>
 
-            <form onSubmit={handleSubmit}>
+            {/* noValidate turns off ALL browser-side validation (type=url, min, step, etc.) */}
+            <form onSubmit={handleSubmit} noValidate>
               <div className={styles.modalBody} style={{ maxHeight: '74vh', overflowY: 'auto' }}>
 
                 {/* ── Thumbnail + Technology ── */}
@@ -589,7 +682,6 @@ const Courses: React.FC = () => {
                       </div>
                       <label htmlFor="thumbnail-upload" className={styles.imageUploadLabel} style={{ cursor: 'pointer', display: 'block', marginTop: 5 }}>
                         {isEditing ? 'Change Thumbnail' : 'Upload Thumbnail'}
-                        {!isEditing && <span style={{ color: 'red' }}> *</span>}
                       </label>
                     </div>
                     <input id="thumbnail-upload" type="file" accept="image/*" hidden onChange={handleImageChange} />
@@ -646,43 +738,43 @@ const Courses: React.FC = () => {
                   />
                 </div>
 
-                {/* ── Basic Info ── */}
+                {/* ── Basic Info (all optional) ── */}
                 <div className={styles.formGrid}>
                   <div className={styles.formGroup} style={{ gridColumn: '1 / -1' }}>
-                    <label className={styles.formLabel}>Course Title <span style={{ color: 'red' }}>*</span></label>
-                    <input type="text" className={styles.formInput} required value={formData.title} onChange={e => setFormData({ ...formData, title: e.target.value })} />
+                    <label className={styles.formLabel}>Course Title</label>
+                    <input type="text" className={styles.formInput} value={formData.title} onChange={e => setFormData({ ...formData, title: e.target.value })} />
                   </div>
                   <div className={styles.formGroup} style={{ gridColumn: '1 / -1' }}>
-                    <label className={styles.formLabel}>Description One <span style={{ color: 'red' }}>*</span></label>
-                    <textarea className={styles.formInput} required rows={3} value={formData.descriptionOne} onChange={e => setFormData({ ...formData, descriptionOne: e.target.value })} style={{ resize: 'vertical' }} />
+                    <label className={styles.formLabel}>Description One</label>
+                    <textarea className={styles.formInput} rows={3} value={formData.descriptionOne} onChange={e => setFormData({ ...formData, descriptionOne: e.target.value })} style={{ resize: 'vertical' }} />
                   </div>
                   <div className={styles.formGroup} style={{ gridColumn: '1 / -1' }}>
-                    <label className={styles.formLabel}>Description Two <span style={{ color: 'red' }}>*</span></label>
-                    <textarea className={styles.formInput} required rows={3} value={formData.descriptionTwo} onChange={e => setFormData({ ...formData, descriptionTwo: e.target.value })} style={{ resize: 'vertical' }} />
+                    <label className={styles.formLabel}>Description Two</label>
+                    <textarea className={styles.formInput} rows={3} value={formData.descriptionTwo} onChange={e => setFormData({ ...formData, descriptionTwo: e.target.value })} style={{ resize: 'vertical' }} />
                   </div>
                   <div className={styles.formGroup}>
-                    <label className={styles.formLabel}>Demo URL <span style={{ color: 'red' }}>*</span></label>
-                    <input type="url" className={styles.formInput}  value={formData.demoUrl} onChange={e => setFormData({ ...formData, demoUrl: e.target.value })} />
+                    <label className={styles.formLabel}>Demo URL</label>
+                    <input type="text" className={styles.formInput} value={formData.demoUrl} onChange={e => setFormData({ ...formData, demoUrl: e.target.value })} />
                   </div>
                   <div className={styles.formGroup}>
-                    <label className={styles.formLabel}>Course Price (₹) <span style={{ color: 'red' }}>*</span></label>
-                    <input type="number" className={styles.formInput} required min={0} value={formData.coursePrice} onChange={e => setFormData({ ...formData, coursePrice: e.target.value })} />
+                    <label className={styles.formLabel}>Course Price (₹)</label>
+                    <input type="number" className={styles.formInput} value={formData.coursePrice} onChange={e => setFormData({ ...formData, coursePrice: e.target.value })} />
                   </div>
                   <div className={styles.formGroup}>
-                    <label className={styles.formLabel}>Hours of Content <span style={{ color: 'red' }}>*</span></label>
-                    <input type="number" className={styles.formInput} required min={0.5} step={0.5} value={formData.hoursOfContent} onChange={e => setFormData({ ...formData, hoursOfContent: e.target.value })} />
+                    <label className={styles.formLabel}>Hours of Content</label>
+                    <input type="number" className={styles.formInput} step="any" value={formData.hoursOfContent} onChange={e => setFormData({ ...formData, hoursOfContent: e.target.value })} />
                   </div>
                   <div className={styles.formGroup}>
-                    <label className={styles.formLabel}>Modules <span style={{ color: 'red' }}>*</span></label>
-                    <input type="number" className={styles.formInput} required min={1} value={formData.modules} onChange={e => setFormData({ ...formData, modules: e.target.value })} />
+                    <label className={styles.formLabel}>Modules</label>
+                    <input type="number" className={styles.formInput} value={formData.modules} onChange={e => setFormData({ ...formData, modules: e.target.value })} />
                   </div>
                   <div className={styles.formGroup}>
-                    <label className={styles.formLabel}>Projects <span style={{ color: 'red' }}>*</span></label>
-                    <input type="number" className={styles.formInput} required min={0} value={formData.projects} onChange={e => setFormData({ ...formData, projects: e.target.value })} />
+                    <label className={styles.formLabel}>Projects</label>
+                    <input type="number" className={styles.formInput} value={formData.projects} onChange={e => setFormData({ ...formData, projects: e.target.value })} />
                   </div>
                   <div className={styles.formGroup} style={{ gridColumn: '1 / -1' }}>
-                    <label className={styles.formLabel}>Learning Outcomes Description <span style={{ color: 'red' }}>*</span></label>
-                    <textarea className={styles.formInput} required rows={2} value={formData.learningOutcomesDescription} onChange={e => setFormData({ ...formData, learningOutcomesDescription: e.target.value })} style={{ resize: 'vertical' }} />
+                    <label className={styles.formLabel}>Learning Outcomes Description</label>
+                    <textarea className={styles.formInput} rows={2} value={formData.learningOutcomesDescription} onChange={e => setFormData({ ...formData, learningOutcomesDescription: e.target.value })} style={{ resize: 'vertical' }} />
                   </div>
                 </div>
 
@@ -724,9 +816,7 @@ const Courses: React.FC = () => {
                   </div>
                 </div>
 
-                {/* ══════════════════════════════════════════════════════════
-                    CURRICULUM — with Live Session fields per lesson
-                ══════════════════════════════════════════════════════════ */}
+                {/* ── Curriculum ── */}
                 <div className={courseStyles.sectionBlock}>
                   <div className={courseStyles.sectionHeader}>
                     <span className={courseStyles.sectionTitle}>Curriculum</span>
@@ -743,7 +833,7 @@ const Courses: React.FC = () => {
                           <input
                             type="text"
                             className={`${styles.formInput} ${courseStyles.chapterTitleInput}`}
-                            placeholder={`Chapter ${ci + 1} title *`}
+                            placeholder={`Chapter ${ci + 1} title`}
                             value={chapter.title}
                             onChange={e => updateChapterTitle(ci, e.target.value)}
                           />
@@ -769,7 +859,6 @@ const Courses: React.FC = () => {
                               {chapter.lessons.map((lesson, li) => (
                                 <div key={li} className={courseStyles.lessonCard}>
 
-                                  {/* Lesson card header */}
                                   <div className={courseStyles.lessonCardHeader}>
                                     <div className={courseStyles.lessonIconWrap}>
                                       <Video size={13} />
@@ -782,22 +871,14 @@ const Courses: React.FC = () => {
                                     )}
                                   </div>
 
-                                  {/* Lesson fields */}
                                   <div className={courseStyles.lessonFields}>
-
-                                    {/* Row 1: Title */}
                                     <input
                                       type="text"
                                       className={`${styles.formInput} ${courseStyles.lessonInput}`}
-                                      placeholder="Lesson title *"
+                                      placeholder="Lesson title"
                                       value={lesson.title}
                                       onChange={e => updateLesson(ci, li, 'title', e.target.value)}
                                     />
-
-                             
-
-                           
-
                                   </div>
                                 </div>
                               ))}
