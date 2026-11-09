@@ -30,7 +30,10 @@ import {
   Hammer,        // Workshop (parent)
   PenSquare,     // Workshop Registrations
   KeyRound,      // Manage Admins
-  Database,      // Master (parent)
+  Database,
+    ClipboardCheck, // Assessments (parent)
+  BookMarked,     // Manage Subjects
+  FileQuestion,   // Manage Assessments// Master (parent)
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -45,11 +48,13 @@ export const Sidebar: React.FC<SidebarProps> = ({ collapsed, onToggle }) => {
   const [isWorkshopOpen, setIsWorkshopOpen] = useState(false);
   const [isTechOpen,     setIsTechOpen]     = useState(false);
   const [isStudentsOpen, setIsStudentsOpen] = useState(false);
-  const [isBatchesOpen,  setIsBatchesOpen]  = useState(false);
+  const [isBatchesOpen, setIsBatchesOpen] = useState(false);
+  const [isAssessmentsOpen, setIsAssessmentsOpen] = useState(false);
 
   // ── Active-route helpers ──────────────────────────────────────────────────────
   const isActive    = (path: string) => location.pathname === path;
   const isUnderPath = (paths: string[]) => paths.some(p => location.pathname.startsWith(p));
+  const isAssessmentsActive = isUnderPath(['/assessment-subjects', '/manage-assessments']);
 
   const isMasterActive   = isUnderPath(['/manage-admins', '/manage-technology']);
   const isWorkshopActive = isUnderPath(['/workshops', '/workshop-registrations']);
@@ -166,6 +171,18 @@ export const Sidebar: React.FC<SidebarProps> = ({ collapsed, onToggle }) => {
             <DropdownLink to="/students-enrollments" icon={<ClipboardList size={16} />} label="Student Enrollments" />
             <DropdownLink to="/students"             icon={<Users size={16} />}         label="Students" />
           </NavDropdown>
+
+          {/* Assessments */}
+<NavDropdown
+  icon={<ClipboardCheck size={20} />}
+  label="Assessments"
+  isOpen={isAssessmentsOpen}
+  isGroupActive={isAssessmentsActive}
+  onToggle={() => setIsAssessmentsOpen(o => !o)}
+>
+  <DropdownLink to="/assessment-subjects" icon={<BookMarked size={16} />}   label="Manage Subjects" />
+  <DropdownLink to="/manage-assessments"  icon={<FileQuestion size={16} />} label="Manage Assessments" />
+</NavDropdown>
 
           {/* Enquiries */}
           <NavLink to="/enquiries" icon={<MessageSquare size={20} />} label="Enquiries" />

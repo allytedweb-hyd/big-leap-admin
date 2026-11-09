@@ -28,6 +28,9 @@ import Admins from './pages/Admins/Admins';
 import TechnologyPage from './pages/Technology/Technology';
 import Quiz from './pages/Quiz/QuizManagement';
 import ChapterQuiz from './pages/Quiz/ChapterQuiz';
+import AssessmentSubjects from './pages/AssessmentSubjects/AssessmentSubjects';
+import ManageAssessments from './pages/ManageAssessments/ManageAssessments';
+import AssessmentForm from './pages/ManageAssessments/AssessmentForm';
 
 const App = () => {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(!!localStorage.getItem("userjwttoken"));
@@ -100,6 +103,10 @@ const App = () => {
           <Route path="manage-technology" element={<TechnologyPage />} />
           <Route path="/admin/courses/:courseId/quiz" element={<Quiz />} />
           <Route path="/admin/courses/:courseId/chapters/:chapterId/quiz" element={<ChapterQuiz />} />
+  <Route path="/assessment-subjects" element={<AssessmentSubjects />} />
+<Route path="/manage-assessments" element={<ManageAssessments />} />
+<Route path="/manage-assessments/create" element={<AssessmentForm />} />
+<Route path="/manage-assessments/edit/:id" element={<AssessmentForm />} />
         </Route>
 
         <Route path="*" element={<Navigate to={isAuthenticated ? "/" : "/login"} replace />} />
